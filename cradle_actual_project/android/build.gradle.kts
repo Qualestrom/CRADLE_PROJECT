@@ -3,6 +3,12 @@ allprojects {
         google()
         mavenCentral()
     }
+    // dependencies {
+    //     classpath("com.android.tools.build:gradle:8.0.2")
+    //     classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0")
+    //     classpath("com.google.gms:google-services:4.4.2")
+    //     classpath("dev.flutter:flutter-gradle-plugin:1.0.0")
+    // }
 }
 
 val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()

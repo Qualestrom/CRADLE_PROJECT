@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "610125770544",
+    "project_id": "cradle-1b716",
+    "storage_bucket": "cradle-1b716.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:610125770544:android:a837a183dab6dc835362f5",
+        "android_client_info": {
+          "package_name": "com.dalandan.cradle"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY8uclihfD1c2X6iO_nMDKoM3ngVMO0ho"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

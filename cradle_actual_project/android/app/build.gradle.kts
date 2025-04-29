@@ -3,6 +3,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 android {
@@ -42,3 +43,10 @@ android {
 flutter {
     source = "../.."
 }
+// dependencies {
+//     classpath("com.android.tools.build:gradle:8.0.2")
+//     classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0")
+//     classpath("com.google.gms:google-services:4.4.2")
+//     classpath("dev.flutter:flutter-gradle-plugin:1.0.0")
+// }
+// apply plugin: "com.google.gms.google-services"
