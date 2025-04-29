@@ -71,6 +71,7 @@ class Bedspace extends ForRent {
          latitude: latitude,
          longitude: longitude,
          otherDetails: otherDetails,
+         docId: uid, // Assuming uid is used as the document ID
        );
 
   /// Factory constructor to create a Bedspace from Firestore data (Map).

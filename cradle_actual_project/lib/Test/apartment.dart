@@ -39,6 +39,7 @@ class Apartment extends ForRent {
          latitude: latitude,
          longitude: longitude,
          otherDetails: otherDetails,
+        docId: uid, // Assuming uid is used as the document ID
        );
 
   /// Factory constructor to create an Apartment from Firestore data (Map).
