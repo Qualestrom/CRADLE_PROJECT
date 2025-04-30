@@ -1,6 +1,5 @@
 // c:\Users\Christopher\Desktop\test\CRADLE_PROJECT\cradle_actual_project\lib\Test\apartment.dart
 
-import 'package:flutter/foundation.dart'; // Keep or remove based on wider project context
 import 'for_rent.dart'; // <-- Correct import based on your filename
 
 class Apartment extends ForRent {
@@ -9,44 +8,31 @@ class Apartment extends ForRent {
   final int capacity;
 
   Apartment({
-    required String uid,
-    required String imageFilename,
-    required String name,
-    required String contactPerson,
-    required String contactNumber,
-    required double price,
-    required List<String> billsIncluded,
-    required String address,
-    String? curfew,
-    required int contract,
-    required double latitude,
-    required double longitude,
-    required String otherDetails,
+    // Use super parameters to forward directly to ForRent constructor
+    required super.uid,
+    required super.imageFilename,
+    required super.name,
+    required super.contactPerson,
+    required super.contactNumber,
+    required super.price,
+    required super.billsIncluded,
+    required super.address,
+    super.curfew, // Optional parameters are forwarded too
+    required super.contract,
+    required super.latitude,
+    required super.longitude,
+    required super.otherDetails,
+    // Keep 'this.' for fields specific to Apartment
     required this.noOfBedrooms,
     required this.noOfBathrooms,
     required this.capacity,
-  }) : super(
-         uid: uid,
-         imageFilename: imageFilename,
-         name: name,
-         contactPerson: contactPerson,
-         contactNumber: contactNumber,
-         price: price,
-         billsIncluded: billsIncluded,
-         address: address,
-         curfew: curfew,
-         contract: contract,
-         latitude: latitude,
-         longitude: longitude,
-         otherDetails: otherDetails,
-        docId: uid, // Assuming uid is used as the document ID
-       );
+  }); // No need for the ': super(...)' initializer list anymore for these parameters
 
   /// Factory constructor to create an Apartment from Firestore data (Map).
   factory Apartment.fromJson(String id, Map<String, dynamic> data) {
     return Apartment(
-      uid: id, // Use the document ID passed in
-      imageFilename: data['imageFilename'] as String? ?? '',
+      uid: data['uid'] as String? ?? '', // Use uid from data, id is the doc ID
+      imageFilename: data['_imageFilename'] as String? ?? '',
       name: data['name'] as String? ?? '',
       contactPerson: data['contactPerson'] as String? ?? '',
       contactNumber: data['contactNumber'] as String? ?? '',
@@ -69,4 +55,17 @@ class Apartment extends ForRent {
   // var apt = Apartment(...);
   // print(apt.noOfBedrooms);
   // print(apt.capacity);
+
+  /// Converts this Apartment object into a Map suitable for Firestore.
+  @override
+  Map<String, dynamic> toJson() {
+    final json = super.toJson(); // Get common fields from ForRent
+    json.addAll({
+      'type': 'apartment', // Add the type identifier
+      'noOfBedrooms': noOfBedrooms,
+      'noOfBathrooms': noOfBathrooms,
+      'capacity': capacity,
+    });
+    return json;
+  }
 }

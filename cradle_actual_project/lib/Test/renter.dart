@@ -2,7 +2,7 @@
 enum Sex { male, female }
 
 /// Represents a buyer, potentially a student renter.
-class Buyer {
+class Renter {
   /// The full name of the buyer.
   final String name;
 
@@ -26,7 +26,7 @@ class Buyer {
 
   /// Creates an instance of [Buyer].
   /// All fields are required.
-  Buyer({
+  Renter({
     required this.name,
     required this.age,
     required this.phone,

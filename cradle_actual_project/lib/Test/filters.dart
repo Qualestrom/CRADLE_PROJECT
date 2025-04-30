@@ -1,6 +1,5 @@
-// filters.dart
-
-/// Represents filtering options for listings.
+// This file contains the definition of the Filters class, which is used to represent
+// /// filtering options for listings in a real estate application. The class includes properties
 class Filters {
   /// The type filter criteria ('APARTMENT', 'BEDSPACE'). Null if not specified.
   String? type;

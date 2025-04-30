@@ -1,10 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-// --- GenderPreference enum and parseGenderPreference function removed from here ---
+// Base class for rental properties.
 
 class ForRent {
   final String uid;
   final String imageFilename;
+  String? imageDownloadUrl; // Renamed field to store the download URL
   final String name;
   final String contactPerson;
   final String contactNumber;
@@ -16,11 +15,12 @@ class ForRent {
   final double latitude;
   final double longitude;
   final String otherDetails;
-  final String docId;
+  // final String docId; // Removed: Document ID is typically handled outside the model.
 
   ForRent({
     required this.uid,
     required this.imageFilename,
+    this.imageDownloadUrl, // Renamed constructor parameter
     required this.name,
     required this.contactPerson,
     required this.contactNumber,
@@ -32,34 +32,34 @@ class ForRent {
     required this.latitude,
     required this.longitude,
     required this.otherDetails,
-    required this.docId,
+    // required this.docId, // Removed
   });
 
-  // Note: A base fromJson isn't strictly needed if only subclasses
-  // are instantiated directly from Firestore data.
-  // Subclasses will handle calling the super constructor.
-}
+  /// Converts this ForRent object into a Map suitable for Firestore.
+  /// Subclasses should override this, call super.toJson(), and add their specific fields.
+  Map<String, dynamic> toJson() {
+    return {
+      'uid': uid,
+      'imageFilename':
+          // Note: imageUrl is NOT typically stored back in Firestore
+          imageFilename, // Ensure this field name matches Firestore
+      'name': name,
+      'contactPerson': contactPerson,
+      'contactNumber': contactNumber,
+      'price': price,
+      'billsIncluded': billsIncluded,
+      'address': address,
+      'curfew': curfew, // Can be null
+      'contract': contract,
+      'latitude': latitude,
+      'longitude': longitude,
+      'otherDetails': otherDetails,
+      // 'docId' is not stored within the document data itself.
+      // 'type' field will be added by subclasses in their toJson overrides.
+    };
+  }
 
-ForRent mapFirestoreDocumentToForRent(DocumentSnapshot doc) {
-  return ForRent(
-    uid: doc['uid'] ?? '', // Ensure uid is not null
-    contactPerson:
-        doc['contactPerson'] ?? '', // Ensure contactPerson is not null
-    contactNumber:
-        doc['contactNumber'] ?? '', // Ensure contactNumber is not null
-    name: doc['name'] ?? '', // Ensure name is not null
-    billsIncluded: List<String>.from(doc['billsIncluded'] ?? []),
-    latitude:
-        (doc['latitude'] ?? 0.0).toDouble(), // Ensure latitude is not null
-    longitude:
-        (doc['longitude'] ?? 0.0).toDouble(), // Ensure longitude is not null
-    address: doc['address'] ?? '', // Ensure address is not null
-    price: (doc['price'] ?? 0.0).toDouble(), // Ensure price is not null
-    imageFilename:
-        doc['imageFilename'] ?? '', // Ensure imageFilename is not null
-    curfew: doc['curfew'] ?? '', // Ensure curfew is not null
-    contract: (doc['contract'] ?? 0).toInt(), // Ensure contract is not null
-    otherDetails: doc['otherDetails'] ?? '', // Ensure otherDetails is not null
-    docId: doc.id, // Assign Firestore document ID to docId
-  );
+  // Note: A base fromJson factory is generally not used directly.
+  // Use the specific .fromJson factories in subclasses (Apartment, Bedspace)
+  // after checking the 'type' field from Firestore data.
 }

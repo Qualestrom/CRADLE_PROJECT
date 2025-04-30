@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'renter_home_screen.dart'; // Import your custom widget
+
 void main() {
   runApp(const MyApp());
 }
@@ -37,19 +37,22 @@ class _ApartmentListingsState extends State<ApartmentListings> {
 
   final apartmentData = [
     {
-      'imageUrl': 'https://pix1.agoda.net/hotelimages/440/4408571/4408571_18013002210061390098.jpg',
+      'imageUrl':
+          'https://pix1.agoda.net/hotelimages/440/4408571/4408571_18013002210061390098.jpg',
       'title': 'ABC Apartment',
       'price': '₱2,000.00 / Month',
       'rating': '4.5'
     },
     {
-      'imageUrl': 'https://movetoasia.com/wp-content/uploads/2021/04/rent-apartment-philippines-expatriate.jpg',
+      'imageUrl':
+          'https://movetoasia.com/wp-content/uploads/2021/04/rent-apartment-philippines-expatriate.jpg',
       'title': 'ABC Bedspace',
       'price': '₱2,500.00 / Month',
       'rating': '4.8'
     },
     {
-      'imageUrl': 'https://th.bing.com/th/id/OIP.WdPkaGsLAWfhzloA140BvQHaEK?w=1920&h=1080&rs=1&pid=ImgDetMain',
+      'imageUrl':
+          'https://th.bing.com/th/id/OIP.WdPkaGsLAWfhzloA140BvQHaEK?w=1920&h=1080&rs=1&pid=ImgDetMain',
       'title': 'Skyline Lofts',
       'price': '₱1,800.00 / Month',
       'rating': '4.2'
@@ -161,7 +164,9 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        const Text("Filters", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        const Text("Filters",
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold)),
                         IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.pop(context),
@@ -169,47 +174,60 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const Text("Type", style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...["Apartment", "Bedspace"].map((type) => RadioListTile<String>(
-                      title: Text(type),
-                      value: type,
-                      groupValue: _typeFilter,
-                      onChanged: (String? value) => filterSetState(() => _typeFilter = value),
-                    )),
+                    const Text("Type",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...["Apartment", "Bedspace"]
+                        .map((type) => RadioListTile<String>(
+                              title: Text(type),
+                              value: type,
+                              groupValue: _typeFilter,
+                              onChanged: (String? value) =>
+                                  filterSetState(() => _typeFilter = value),
+                            )),
                     const SizedBox(height: 15),
-                    const Text("Contract", style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...["No contract", "With contract"].map((contract) => RadioListTile<String>(
-                      title: Text(contract),
-                      value: contract,
-                      groupValue: _contractFilter,
-                      onChanged: (String? value) => filterSetState(() => _contractFilter = value),
-                    )),
+                    const Text("Contract",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...["No contract", "With contract"]
+                        .map((contract) => RadioListTile<String>(
+                              title: Text(contract),
+                              value: contract,
+                              groupValue: _contractFilter,
+                              onChanged: (String? value) =>
+                                  filterSetState(() => _contractFilter = value),
+                            )),
                     const SizedBox(height: 15),
-                    const Text("Gender", style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...["Male", "Female", "Mixed"].map((gender) => RadioListTile<String>(
-                      title: Text(gender),
-                      value: gender,
-                      groupValue: _genderFilter,
-                      onChanged: (String? value) => filterSetState(() => _genderFilter = value),
-                    )),
+                    const Text("Gender",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...["Male", "Female", "Mixed"]
+                        .map((gender) => RadioListTile<String>(
+                              title: Text(gender),
+                              value: gender,
+                              groupValue: _genderFilter,
+                              onChanged: (String? value) =>
+                                  filterSetState(() => _genderFilter = value),
+                            )),
                     const SizedBox(height: 15),
-                    const Text("Street", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Street",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: 'Universe St.',
                       ),
                       value: _streetFilter,
-                      items: ['Universe St.', 'Galaxy Ave', 'Cosmic Rd'].map((String value) {
+                      items: ['Universe St.', 'Galaxy Ave', 'Cosmic Rd']
+                          .map((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
                           child: Text(value),
                         );
                       }).toList(),
-                      onChanged: (String? newValue) => filterSetState(() => _streetFilter = newValue),
+                      onChanged: (String? newValue) =>
+                          filterSetState(() => _streetFilter = newValue),
                     ),
                     const SizedBox(height: 15),
-                    const Text("Price Range", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Price Range",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     RangeSlider(
                       values: _priceRange,
                       min: 0,
@@ -219,7 +237,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                         '₱${_priceRange.start.round()}',
                         '₱${_priceRange.end.round()}',
                       ),
-                      onChanged: (RangeValues values) => filterSetState(() => _priceRange = values),
+                      onChanged: (RangeValues values) =>
+                          filterSetState(() => _priceRange = values),
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -268,7 +287,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                   height: 200,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(12)),
                     image: DecorationImage(
                       image: NetworkImage(apartment['imageUrl']!),
                       fit: BoxFit.cover,
@@ -282,7 +302,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                     backgroundColor: Colors.purple.withOpacity(0.8),
                     child: Text(
                       apartment['title']!.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -303,17 +324,25 @@ class _ApartmentListingsState extends State<ApartmentListings> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(apartment['title']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const Text("Apartment", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  Text(apartment['title']!,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text("Apartment",
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 8),
-                  Text(apartment['price']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(apartment['price']!,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      for (var i = 0; i < 4; i++) const Icon(Icons.star, color: Colors.yellow),
+                      for (var i = 0; i < 4; i++)
+                        const Icon(Icons.star, color: Colors.yellow),
                       const Icon(Icons.star_half, color: Colors.yellow),
                       const SizedBox(width: 5),
-                      Text(apartment['rating']!, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                      Text(apartment['rating']!,
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 14)),
                     ],
                   ),
                   const SizedBox(height: 6),

@@ -1,6 +1,4 @@
 // c:\Users\Christopher\Desktop\test\CRADLE_PROJECT\cradle_actual_project\lib\Test\bedspace.dart
-
-import 'package:flutter/foundation.dart'; // Keep or remove based on wider project context
 import 'for_rent.dart';
 
 // --- Define Enum and Helper Function specific to Bedspace here ---
@@ -41,38 +39,25 @@ class Bedspace extends ForRent {
   final GenderPreference gender;
 
   Bedspace({
-    required String uid,
-    required String imageFilename,
-    required String name,
-    required String contactPerson,
-    required String contactNumber,
-    required double price,
-    required List<String> billsIncluded,
-    required String address,
-    String? curfew,
-    required int contract,
-    required double latitude,
-    required double longitude,
-    required String otherDetails,
+    // Use super parameters to forward directly to ForRent constructor
+    required super.uid,
+    required super.imageFilename,
+    required super.name,
+    required super.contactPerson,
+    required super.contactNumber,
+    required super.price,
+    required super.billsIncluded,
+    required super.address,
+    super.curfew, // Optional parameters are forwarded too
+    required super.contract,
+    required super.latitude,
+    required super.longitude,
+    required super.otherDetails,
+    // Keep 'this.' for fields specific to Bedspace
     required this.roommateCount,
     required this.bathroomShareCount,
     required this.gender, // Parameter type is GenderPreference
-  }) : super(
-         uid: uid,
-         imageFilename: imageFilename,
-         name: name,
-         contactPerson: contactPerson,
-         contactNumber: contactNumber,
-         price: price,
-         billsIncluded: billsIncluded,
-         address: address,
-         curfew: curfew,
-         contract: contract,
-         latitude: latitude,
-         longitude: longitude,
-         otherDetails: otherDetails,
-         docId: uid, // Assuming uid is used as the document ID
-       );
+  }); // No need for the ': super(...)' initializer list anymore for these parameters
 
   /// Factory constructor to create a Bedspace from Firestore data (Map).
   /// (Keeping this here as it was added in the previous step, uses the local enum/parser)
@@ -81,8 +66,8 @@ class Bedspace extends ForRent {
     GenderPreference genderValue = parseGenderPreference(data['gender']);
 
     return Bedspace(
-      uid: id, // Use the document ID passed in
-      imageFilename: data['imageFilename'] as String? ?? '',
+      uid: data['uid'] as String? ?? '', // Use uid from data, id is the doc ID
+      imageFilename: data['_imageFilename'] as String? ?? '',
       name: data['name'] as String? ?? '',
       contactPerson: data['contactPerson'] as String? ?? '',
       contactNumber: data['contactNumber'] as String? ?? '',
@@ -105,4 +90,17 @@ class Bedspace extends ForRent {
   // var bs = Bedspace(...);
   // print(bs.roommateCount);
   // print(bs.gender); // Output would be like GenderPreference.femaleOnly
+
+  /// Converts this Bedspace object into a Map suitable for Firestore.
+  @override
+  Map<String, dynamic> toJson() {
+    final json = super.toJson(); // Get common fields from ForRent
+    json.addAll({
+      'type': 'bedspace', // Add the type identifier
+      'roommateCount': roommateCount,
+      'bathroomShareCount': bathroomShareCount,
+      'gender': gender.name, // Store enum name as string (e.g., 'femaleOnly')
+    });
+    return json;
+  }
 }

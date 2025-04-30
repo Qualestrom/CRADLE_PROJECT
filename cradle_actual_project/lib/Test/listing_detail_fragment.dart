@@ -3,22 +3,28 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart'; // For the call button
 
+import 'package:logger/logger.dart'; // Import logger
+
 // Import your data models
 import 'for_rent.dart';
 import 'apartment.dart';
 import 'bedspace.dart';
 
+// Initialize logger for this file
+final logger = Logger();
+
 class ListingDetailScreen extends StatefulWidget {
   final String listingId; // ID passed from the previous screen
 
-  const ListingDetailScreen({Key? key, required this.listingId})
-      : super(key: key);
+  const ListingDetailScreen(
+      {super.key, required this.listingId}); // Use super parameter for key
 
   @override
-  _ListingDetailScreenState createState() => _ListingDetailScreenState();
+  // ignore: invalid_use_of_private_type_in_public_api
+  ListingDetailScreenState createState() => ListingDetailScreenState();
 }
 
-class _ListingDetailScreenState extends State<ListingDetailScreen> {
+class ListingDetailScreenState extends State<ListingDetailScreen> {
   // Future to hold the combined result of Firestore data and Storage URL
   late Future<ListingDetails> _listingDetailsFuture;
 
@@ -60,18 +66,20 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               .ref()
               .child(listing.imageFilename)
               .getDownloadURL();
-        } catch (e) {
+        } catch (e, s) {
           // Handle image loading error (e.g., file not found)
-          print('Error fetching image URL: $e');
+          logger.e("Error fetching image URL for ${listing.imageFilename}",
+              error: e, stackTrace: s); // Use logger.e
           // You might want to set a placeholder image URL here
         }
       }
 
       // 4. Return combined details
       return ListingDetails(listing: listing, imageUrl: imageUrl);
-    } catch (e) {
+    } catch (e, s) {
       // Rethrow the error to be caught by FutureBuilder
-      print('Error fetching listing details: $e');
+      logger.e("Error fetching listing details for ${widget.listingId}",
+          error: e, stackTrace: s); // Use logger.e
       rethrow;
     }
   }
@@ -125,8 +133,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
             // Determine type for conditional UI
             final bool isApartment = listing is Apartment;
-            final Apartment? apartment =
-                isApartment ? listing as Apartment : null;
+            final Apartment? apartment = isApartment ? listing : null;
             final Bedspace? bedspace =
                 !isApartment ? listing as Bedspace : null;
 

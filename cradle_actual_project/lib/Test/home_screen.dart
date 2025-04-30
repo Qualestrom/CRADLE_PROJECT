@@ -5,15 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart'; // Import connectivity
+import 'package:logger/logger.dart'; // Import logger
 import 'dart:async'; // Import for async
 
 // Import your models and helpers
 import 'for_rent.dart'; // Adjust path as needed
 import 'apartment.dart'; // Adjust path as needed
-import 'bedspace.dart'; // Adjust path as needed
 import 'filters.dart'; // Adjust path as needed
 import 'firestore_mapper.dart'; // Adjust path as needed
 import 'listing_detail_fragment.dart'; // Adjust path as needed (your from_java.dart screen)
+
+// Initialize logger for this file
+final logger = Logger();
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,7 +27,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  // Corrected: Use FirebaseFirestore.instance
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
@@ -40,19 +42,20 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // --- Connectivity State ---
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  // Corrected: Subscription type matches the stream's event type (List)
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isOfflineDialogShowing = false;
   bool _isConnected = true; // Assume connected initially
 
   @override
   void initState() {
     super.initState();
-    // Corrected: Use copyWith() for initialization
     _tempFilters = _activeFilters.copyWith();
     _loadUserInfo(); // Load user info
 
     // --- Connectivity Check ---
     _checkInitialConnectivity();
+    // Corrected: Listen to the stream without incorrect casts
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
     // --- End Connectivity Check ---
@@ -72,9 +75,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // --- Connectivity Methods ---
-  // (Keep your existing connectivity methods: _checkConnectivity,
-  // _checkInitialConnectivity, _handleConnectivityChange, _showOfflineDialog)
+
   // Function to check connectivity and show/hide dialog
+  // Accepts a single ConnectivityResult
   Future<void> _checkConnectivity(ConnectivityResult result) async {
     final currentlyConnected = result != ConnectivityResult.none;
     if (mounted) {
@@ -84,41 +87,42 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (!currentlyConnected) {
-      // Only show dialog if it's not already showing and widget is mounted
       if (!_isOfflineDialogShowing && mounted) {
         setState(() {
           _isOfflineDialogShowing = true;
         });
-        // Don't await here, let the dialog manage its lifecycle
-        _showOfflineDialog();
+        _showOfflineDialog(); // Don't await
       }
     } else {
-      // If connected and the dialog is showing, dismiss it
       if (_isOfflineDialogShowing && mounted) {
-        // Use rootNavigator: true to ensure it pops the dialog
-        // even if called from within the dialog's context (like retry)
         Navigator.of(context, rootNavigator: true).pop();
-        setState(() {
-          _isOfflineDialogShowing = false;
-        });
+        // No need to setState for _isOfflineDialogShowing here,
+        // it's handled in the .then() of showDialog
       }
     }
   }
 
   // Check connectivity when the screen first loads
   Future<void> _checkInitialConnectivity() async {
-    final result = await Connectivity().checkConnectivity();
-    await _checkConnectivity(result);
+    // Corrected: checkConnectivity returns a List
+    final results = await Connectivity().checkConnectivity();
+    // Process the first result (usually the most relevant)
+    // Default to 'none' if the list is unexpectedly empty
+    await _checkConnectivity(
+        results.isNotEmpty ? results.first : ConnectivityResult.none);
   }
 
   // Handle connectivity changes detected by the stream listener
-  void _handleConnectivityChange(ConnectivityResult result) {
-    _checkConnectivity(result);
+  // Corrected: Accepts List<ConnectivityResult> from the stream
+  void _handleConnectivityChange(List<ConnectivityResult> results) {
+    // Process the first result from the list
+    // Default to 'none' if the list is unexpectedly empty
+    _checkConnectivity(
+        results.isNotEmpty ? results.first : ConnectivityResult.none);
   }
 
   // Function to display the offline warning dialog
   Future<void> _showOfflineDialog() async {
-    // Ensure context is valid before showing dialog
     if (!mounted) return;
 
     return showDialog<void>(
@@ -148,31 +152,34 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text('Retry'),
               onPressed: () async {
                 // Manually trigger a re-check when retry is pressed
-                final result = await Connectivity().checkConnectivity();
+                // Corrected: checkConnectivity returns a List
+                final results = await Connectivity().checkConnectivity();
+                final result = results.isNotEmpty
+                    ? results.first
+                    : ConnectivityResult.none;
+
                 // _checkConnectivity will handle dismissing the dialog if connected
-                _checkConnectivity(result);
+                await _checkConnectivity(result); // Pass the single result
 
                 // If still offline after retry, show a quick message
                 if (result == ConnectivityResult.none && mounted) {
-                  // Check mounted again before showing SnackBar
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    // Use dialogContext
                     const SnackBar(
                       content: Text('Still offline. Please check connection.'),
                       duration: Duration(seconds: 2),
                     ),
                   );
                 }
+                // No need to manually pop here, _checkConnectivity handles it if online
               },
             ),
           ],
         );
       },
     ).then((_) {
-      // This block executes when the dialog is popped.
+      // This block executes when the dialog is popped (either by Navigator.pop
+      // or by pressing back button if barrierDismissible was true).
       // Reset the flag ensuring it can be shown again if needed.
-      // Check mounted state again as the widget might be disposed
-      // between showing the dialog and it being dismissed.
       if (mounted) {
         setState(() {
           _isOfflineDialogShowing = false;
@@ -183,10 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- End Connectivity Methods ---
 
   Future<void> _loadUserInfo() async {
-    // Check mounted before accessing context or prefs
     if (!mounted) return;
     final prefs = await SharedPreferences.getInstance();
-    // Check mounted again after async gap
     if (mounted) {
       setState(() {
         _accountType = prefs.getString("accountType");
@@ -198,72 +203,46 @@ class _HomeScreenState extends State<HomeScreen> {
   Query _buildFilteredQuery() {
     Query query = _db.collection('listings');
 
-    // --- Type Filter ---
-    // Option 1: Filter based on existence of type-specific fields (as before)
-    // if (_activeFilters.type != null) {
-    //   if (_activeFilters.type == "APARTMENT") {
-    //     query = query.where('noOfBedrooms', isGreaterThanOrEqualTo: 0);
-    //   } else if (_activeFilters.type == "BEDSPACE") {
-    //     query = query.where('roommateCount', isGreaterThanOrEqualTo: 0);
-    //   }
-    // }
-    // Option 2: Filter based on a dedicated 'type' field in Firestore (Recommended)
+    // Option 2: Filter based on a dedicated 'type' field (Recommended)
     if (_activeFilters.type != null) {
-      // Assumes you have a field named 'listingType' (or similar) in Firestore
-      // storing "APARTMENT" or "BEDSPACE"
-      query = query.where('listingType', isEqualTo: _activeFilters.type);
+      query = query.where('type',
+          isEqualTo: _activeFilters.type); // <-- Use 'type' here
     }
 
     // --- Contract Filter ---
-    // Corrected: Use 'contract' property (nullable bool)
     if (_activeFilters.contract != null) {
-      // **IMPORTANT**: Assumes your 'contract' field in Firestore is a BOOLEAN (true/false).
-      // If it's stored differently (e.g., integer 0/1, string 'yes'/'no'),
-      // adjust this 'isEqualTo' accordingly.
       query = query.where('contract', isEqualTo: _activeFilters.contract);
     }
 
     // --- Curfew Filter ---
-    // Corrected: Use 'curfew' property (nullable bool)
     if (_activeFilters.curfew != null) {
-      // **IMPORTANT**: Assumes your 'curfew' field in Firestore is a BOOLEAN (true/false).
-      // If it's stored differently (e.g., string 'yes'/'no', non-empty/empty string),
-      // adjust this 'isEqualTo' accordingly.
       query = query.where('curfew', isEqualTo: _activeFilters.curfew);
     }
 
     // --- Ordering ---
-    // Ensure you have a Firestore index for this query combination.
-    // The index usually includes the fields you filter on first,
-    // followed by the field you order by.
     query = query.orderBy('dateCreated', descending: true);
     return query;
   }
 
   void _showFilterSheet() {
-    // Corrected: Use copyWith() to create a temporary copy for the sheet
     _tempFilters = _activeFilters.copyWith();
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows sheet to take more height if needed
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        // Add rounded corners
         borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
       ),
       builder: (context) {
-        // Use StatefulBuilder to manage the state *within* the bottom sheet
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                // Adjust padding for keyboard overlap if text fields were present
                 bottom: MediaQuery.of(context).viewInsets.bottom,
                 top: 20,
                 left: 20,
                 right: 20,
               ),
               child: Wrap(
-                // Use Wrap for content that might exceed vertical space
                 children: [
                   // Header
                   Row(
@@ -272,7 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text('Filters',
                           style: Theme.of(context).textTheme.headlineSmall),
                       IconButton(
-                        // Add a close button
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(context),
                       ),
@@ -283,15 +261,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   // --- Type Filter ---
                   Text('Listing Type',
                       style: Theme.of(context).textTheme.titleMedium),
-                  // Use RadioListTile for single selection (better UX than checkboxes here)
                   RadioListTile<String?>(
                     title: const Text('Apartment'),
                     value: "APARTMENT",
                     groupValue: _tempFilters.type,
                     onChanged: (value) =>
                         setSheetState(() => _tempFilters.type = value),
-                    controlAffinity:
-                        ListTileControlAffinity.leading, // Radio on left
+                    controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
                   ),
                   RadioListTile<String?>(
@@ -303,10 +279,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  // Optional: Add an "Any" option
                   RadioListTile<String?>(
                     title: const Text('Any Type'),
-                    value: null, // Represents no type filter
+                    value: null,
                     groupValue: _tempFilters.type,
                     onChanged: (value) =>
                         setSheetState(() => _tempFilters.type = value),
@@ -318,7 +293,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   // --- Contract Filter ---
                   Text('Contract',
                       style: Theme.of(context).textTheme.titleMedium),
-                  // Corrected: Use 'contract' property and handle nullable bool
                   RadioListTile<bool?>(
                     title: const Text('With Contract'),
                     value: true,
@@ -339,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   RadioListTile<bool?>(
                     title: const Text('Any Contract'),
-                    value: null, // Represents no contract filter
+                    value: null,
                     groupValue: _tempFilters.contract,
                     onChanged: (value) =>
                         setSheetState(() => _tempFilters.contract = value),
@@ -351,7 +325,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   // --- Curfew Filter ---
                   Text('Curfew',
                       style: Theme.of(context).textTheme.titleMedium),
-                  // Corrected: Use 'curfew' property and handle nullable bool
                   RadioListTile<bool?>(
                     title: const Text('With Curfew'),
                     value: true,
@@ -372,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   RadioListTile<bool?>(
                     title: const Text('Any Curfew'),
-                    value: null, // Represents no curfew filter
+                    value: null,
                     groupValue: _tempFilters.curfew,
                     onChanged: (value) =>
                         setSheetState(() => _tempFilters.curfew = value),
@@ -383,50 +356,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // --- Action Buttons ---
                   Padding(
-                    // Add padding for buttons
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween, // Space out buttons
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Clear Button
                         OutlinedButton(
-                          // Use OutlinedButton for secondary action
                           onPressed: () {
-                            // Clear filters in the sheet first for visual feedback
                             setSheetState(() {
-                              _tempFilters = Filters(); // Reset temp filters
+                              _tempFilters = Filters();
                             });
-                            // Then clear the active filters and close
                             setState(() {
-                              _activeFilters =
-                                  Filters(); // Reset active filters
+                              _activeFilters = Filters();
                             });
-                            Navigator.pop(context); // Close the sheet
+                            Navigator.pop(context);
                           },
                           child: const Text('Clear All'),
                         ),
-                        // Apply Button
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            // Make apply button stand out
-                            minimumSize:
-                                const Size(120, 40), // Give it some size
+                            minimumSize: const Size(120, 40),
                           ),
                           onPressed: () {
-                            // Apply the temporary filters to the active filters
                             setState(() {
-                              // Corrected: Use copyWith() to apply changes
                               _activeFilters = _tempFilters.copyWith();
                             });
-                            Navigator.pop(context); // Close the sheet
+                            Navigator.pop(context);
                           },
                           child: const Text('Apply Filters'),
                         ),
                       ],
                     ),
                   ),
-                  // Add some bottom padding for safe area
                   SizedBox(height: MediaQuery.of(context).padding.bottom),
                 ],
               ),
@@ -447,12 +407,9 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: Icon(
               Icons.filter_list,
-              // Corrected: Use the isFiltering getter
               color: _activeFilters.isFiltering
-                  ? Theme.of(context)
-                      .colorScheme
-                      .secondary // Use theme color for active filter
-                  : null, // Default color
+                  ? Theme.of(context).colorScheme.secondary
+                  : null,
             ),
             tooltip: 'Filters',
             onPressed: _showFilterSheet,
@@ -460,16 +417,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       drawer: _buildDrawer(),
-      // Conditionally build the body based on connectivity
-      body: _isConnected
-          ? _buildListingStream() // Show listings if connected
-          : _buildOfflineMessage(), // Show offline message if not connected
+      body: _isConnected ? _buildListingStream() : _buildOfflineMessage(),
     );
   }
 
-  // Widget to show when offline
   Widget _buildOfflineMessage() {
-    // (Keep your existing _buildOfflineMessage logic)
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -501,14 +453,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget that builds the StreamBuilder for listings
   Widget _buildListingStream() {
     return StreamBuilder<QuerySnapshot>(
       stream: _buildFilteredQuery().snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          print('Firestore Error: ${snapshot.error}');
-          // Log error more robustly in production (e.g., Crashlytics)
+          logger.e('Firestore Error',
+              error: snapshot.error,
+              stackTrace: snapshot.stackTrace); // Changed print to logger.e
           return Center(
               child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -519,54 +471,46 @@ class _HomeScreenState extends State<HomeScreen> {
           ));
         }
 
-        // Show loading indicator specifically while waiting for initial data
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Handle no data case after connection is active
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(
               child: Text('No listings found matching your criteria.'));
         }
 
-        // Process data only if available
         final List<ForRent> listings = processFirestoreListings(snapshot.data!);
 
-        // Use ListView.separated for better visual spacing
         return ListView.separated(
           itemCount: listings.length,
-          separatorBuilder: (context, index) =>
-              const SizedBox(height: 4), // Space between cards
+          separatorBuilder: (context, index) => const SizedBox(height: 4),
           itemBuilder: (context, index) {
             final listing = listings[index];
             return ListingItemCard(
               listing: listing,
               storage: _storage,
               onTap: () {
-                // Only navigate if connected
                 if (_isConnected) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          ListingDetailScreen(listingId: listing.docId),
+                          ListingDetailScreen(listingId: listing.uid),
                     ),
                   );
                 } else {
-                  // Show a more informative message if offline
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Connect to the internet to view details.'),
-                      behavior: SnackBarBehavior.floating, // Make it float
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
                 }
               },
             );
           },
-          padding: const EdgeInsets.symmetric(
-              vertical: 8.0, horizontal: 4.0), // Add padding around the list
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
         );
       },
     );
@@ -581,32 +525,26 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-            accountName: Text(_fullName ??
-                (isLoggedIn ? "User" : "Guest")), // Default to Guest
-            accountEmail:
-                Text(currentUser?.email ?? "Not signed in"), // Clearer message
-            // TODO: Consider adding current user profile picture if available
-            // currentAccountPicture: CircleAvatar(child: Icon(Icons.person)),
+            accountName: Text(_fullName ?? (isLoggedIn ? "User" : "Guest")),
+            accountEmail: Text(currentUser?.email ?? "Not signed in"),
             decoration: BoxDecoration(
               color: Theme.of(context).primaryColor,
             ),
           ),
           ListTile(
-            leading: const Icon(
-                Icons.home_outlined), // Use outlined icons for consistency
+            leading: const Icon(Icons.home_outlined),
             title: const Text('Home'),
-            selected: true, // Indicate this is the current screen
-            onTap: () => Navigator.pop(context), // Just close drawer
+            selected: true,
+            onTap: () => Navigator.pop(context),
           ),
-          // Conditional Drawer Items
           if (isLoggedIn && _accountType == "SELLER")
             ListTile(
               leading: const Icon(Icons.list_alt_outlined),
               title: const Text('My Properties'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement navigation to My Properties screen
-                print("Navigate to My Properties");
+                logger.i(
+                    "Navigate to My Properties"); // Changed print to logger.i
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('My Properties (Not Implemented)')));
               },
@@ -617,55 +555,48 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('My Favorites'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement navigation to Favorites screen
-                print("Navigate to Favorites");
+                logger.i("Navigate to Favorites"); // Changed print to logger.i
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('My Favorites (Not Implemented)')));
               },
             ),
-          const Divider(), // Visually separate sections
-          // Auth Actions
+          const Divider(),
           if (!isLoggedIn)
             ListTile(
               leading: const Icon(Icons.login),
               title: const Text('Log In / Sign Up'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement navigation to Login/Signup screen
-                print("Navigate to Login/Signup");
+                logger
+                    .i("Navigate to Login/Signup"); // Changed print to logger.i
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Login/Signup (Not Implemented)')));
               },
             ),
           if (isLoggedIn)
             ListTile(
-              leading: Icon(Icons.logout,
-                  color: Colors.red[700]), // Make logout distinct
+              leading: Icon(Icons.logout, color: Colors.red[700]),
               title: Text('Log Out', style: TextStyle(color: Colors.red[700])),
               onTap: () async {
-                Navigator.pop(context); // Close drawer first
+                Navigator.pop(context);
                 try {
                   await _auth.signOut();
                   final prefs = await SharedPreferences.getInstance();
-                  // Use Future.wait for potentially faster parallel removal
                   await Future.wait([
                     prefs.remove("accountType"),
                     prefs.remove("fullName"),
-                    // Add any other user-specific keys here
                   ]);
-                  print("User logged out successfully.");
-                  // Provide user feedback
+                  logger.i(
+                      "User logged out successfully."); // Changed print to logger.i
                   if (mounted) {
-                    // Check mounted before showing SnackBar
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text('Successfully logged out.')));
                   }
-                  // Note: The authStateChanges listener in initState will trigger
-                  // a setState and UI update automatically.
-                } catch (e) {
-                  print("Error logging out: $e");
+                } catch (e, s) {
+                  // Include stack trace
+                  logger.e("Error logging out",
+                      error: e, stackTrace: s); // Changed print to logger.e
                   if (mounted) {
-                    // Check mounted before showing SnackBar
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Error logging out: $e')));
                   }
@@ -679,7 +610,6 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // --- ListingItemCard Widget ---
-// (Added minor improvements like better placeholders, error handling, theme colors)
 class ListingItemCard extends StatelessWidget {
   final ForRent listing;
   final FirebaseStorage storage;
@@ -692,43 +622,39 @@ class ListingItemCard extends StatelessWidget {
     required this.onTap,
   });
 
-  // Consider making this more robust or part of the listing model itself
   Future<String?> _getImageUrl() async {
     if (listing.imageFilename.isEmpty) return null;
     try {
-      // You might want to cache these URLs if they don't change often
       return await storage.ref().child(listing.imageFilename).getDownloadURL();
     } on FirebaseException catch (e) {
-      // Handle specific errors like object-not-found gracefully
       if (e.code == 'object-not-found') {
-        print("Image not found for ${listing.imageFilename}");
+        logger.w(
+            "Image not found for ${listing.imageFilename}"); // Changed print to logger.w
       } else {
-        print("Error getting image URL for ${listing.imageFilename}: $e");
+        logger.e("Error getting image URL for ${listing.imageFilename}",
+            error: e); // Changed print to logger.e
       }
-      return null; // Return null on error
-    } catch (e) {
-      print("Generic error getting image URL for ${listing.imageFilename}: $e");
+      return null;
+    } catch (e, s) {
+      // Include stack trace
+      logger.e("Generic error getting image URL for ${listing.imageFilename}",
+          error: e, stackTrace: s); // Changed print to logger.e
       return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine display type more robustly if needed (e.g., from a type field)
     final String typeDisplay = listing is Apartment ? 'Apartment' : 'Bedspace';
-    // Consider using NumberFormat for currency formatting (intl package)
     final String priceText = '₱${listing.price.toStringAsFixed(0)}/month';
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      margin: const EdgeInsets.symmetric(
-          horizontal: 4, vertical: 0), // Adjusted margin for ListView.separated
-      clipBehavior:
-          Clip.antiAlias, // Ensures InkWell ripple stays within card bounds
-      elevation: 1.0, // Subtle elevation
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0)), // Rounded corners
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      clipBehavior: Clip.antiAlias,
+      elevation: 1.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -738,14 +664,12 @@ class ListingItemCard extends StatelessWidget {
             children: [
               // --- Image ---
               SizedBox(
-                // Constrain the size of the image container
                 width: 100,
                 height: 100,
                 child: FutureBuilder<String?>(
                   future: _getImageUrl(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      // Consistent loading placeholder
                       return Container(
                           decoration: BoxDecoration(
                             color: Colors.grey[300],
@@ -758,30 +682,23 @@ class ListingItemCard extends StatelessWidget {
                     if (snapshot.hasError ||
                         !snapshot.hasData ||
                         snapshot.data == null) {
-                      // Display a placeholder icon on error or no image
                       return Container(
                           decoration: BoxDecoration(
                             color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Center(
-                              child: Icon(
-                                  Icons
-                                      .house_siding_rounded, // More relevant icon
-                                  color: Colors.grey[600],
-                                  size: 40)));
+                              child: Icon(Icons.house_siding_rounded,
+                                  color: Colors.grey[600], size: 40)));
                     }
                     // --- Display Image ---
                     return ClipRRect(
-                      // Clip the image itself to rounded corners
                       borderRadius: BorderRadius.circular(8.0),
                       child: Image.network(snapshot.data!,
                           width: 100, height: 100, fit: BoxFit.cover,
-                          // Improved loading builder
                           loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
                         return Container(
-                          // Maintain size and shape while loading
                           decoration: BoxDecoration(
                             color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(8.0),
@@ -792,27 +709,25 @@ class ListingItemCard extends StatelessWidget {
                               value: progress.expectedTotalBytes != null
                                   ? progress.cumulativeBytesLoaded /
                                       progress.expectedTotalBytes!
-                                  : null, // Indeterminate if size unknown
+                                  : null,
                             ),
                           ),
                         );
-                      },
-                          // Improved error builder
-                          errorBuilder: (context, error, stack) {
-                        print(
-                            "Image load error: $error"); // Log error for debugging
+                      }, errorBuilder: (context, error, stackTrace) {
+                        // Renamed stack to stackTrace
+                        logger.e(
+                            "Image load error for ${listing.imageFilename}",
+                            error: error,
+                            stackTrace:
+                                stackTrace); // Changed print to logger.e
                         return Container(
-                            // Maintain size and shape on error
                             decoration: BoxDecoration(
                               color: Colors.grey[300],
                               borderRadius: BorderRadius.circular(8.0),
                             ),
                             child: Center(
-                                child: Icon(
-                                    Icons
-                                        .broken_image_outlined, // Different icon for load error
-                                    color: Colors.grey[600],
-                                    size: 40)));
+                                child: Icon(Icons.broken_image_outlined,
+                                    color: Colors.grey[600], size: 40)));
                       }),
                     );
                   },
@@ -827,7 +742,7 @@ class ListingItemCard extends StatelessWidget {
                     Text(
                       listing.name.isNotEmpty
                           ? listing.name
-                          : 'Untitled Listing', // Handle empty name
+                          : 'Untitled Listing',
                       style: textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold),
                       maxLines: 2,
@@ -837,38 +752,33 @@ class ListingItemCard extends StatelessWidget {
                     Text(
                       listing.address.isNotEmpty
                           ? listing.address
-                          : 'No address provided', // Handle empty address
+                          : 'No address provided',
                       style: textTheme.bodySmall
                           ?.copyWith(color: Colors.grey[600]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    // Price and Type Chip aligned at the bottom
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment
-                          .end, // Align items vertically at the bottom
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           priceText,
                           style: textTheme.titleSmall?.copyWith(
-                            color: colorScheme
-                                .primary, // Use primary theme color for price
+                            color: colorScheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Chip(
                           label: Text(typeDisplay),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 0), // Adjust padding
+                              horizontal: 6, vertical: 0),
                           labelStyle: textTheme.labelSmall?.copyWith(
                               color: colorScheme.onSecondaryContainer),
-                          visualDensity:
-                              VisualDensity.compact, // Make chip smaller
-                          backgroundColor:
-                              colorScheme.secondaryContainer, // Use theme color
-                          side: BorderSide.none, // Remove border
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: colorScheme.secondaryContainer,
+                          side: BorderSide.none,
                         ),
                       ],
                     ),

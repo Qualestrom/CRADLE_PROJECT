@@ -1,10 +1,14 @@
-// c:\Users\Christopher\Desktop\test\CRADLE_PROJECT\cradle_actual_project\lib\Test\fromJava.dart
-// (Or the file containing your Firestore processing logic)
-
+// File: firestore_mapper.dart
+// Description: This file contains a function to process Firestore QuerySnapshots
+// into a list of ForRent objects (either Apartment or Bedspace). It includes error handling and logging.
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'for_rent.dart';
-import 'apartment.dart'; // Now includes Apartment.fromJson
-import 'bedspace.dart'; // Includes Bedspace.fromJson
+import 'apartment.dart';
+import 'bedspace.dart';
+import 'package:logger/logger.dart'; // Import logger
+
+// Initialize logger for this file
+final logger = Logger();
 
 /// Processes a Firestore QuerySnapshot to create a list of ForRent objects
 /// (either Apartment or Bedspace).
@@ -28,13 +32,17 @@ List<ForRent> processFirestoreListings(QuerySnapshot snapshot) {
       } catch (e) {
         // Log the error and potentially skip this document
         // Determine type for better error message if possible
-        String type =
-            data.containsKey('noOfBedrooms') ? 'Apartment' : 'Bedspace';
-        print("Error processing document ${doc.id} as $type: $e");
-        print("Data: $data"); // Print data for debugging any error
+        String type = data.containsKey('noOfBedrooms')
+            ? 'Apartment'
+            : 'Bedspace'; // Keep type determination
+        logger.e("Error processing document ${doc.id} as $type",
+            error: e); // Use logger.e for errors
+        // Optionally log data at debug level if needed for troubleshooting
+        // logger.d("Data causing error for ${doc.id}: $data");
       }
     } else {
-      print("Document ${doc.id} has null data.");
+      logger.w(
+          "Document ${doc.id} has null data."); // Use logger.w for warnings like null data
     }
   }
   return listings;
@@ -47,7 +55,7 @@ List<ForRent> processFirestoreListingsFunctional(QuerySnapshot snapshot) {
       .map((doc) {
         Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
         if (data == null) {
-           print("Document ${doc.id} has null data.");
+           logger.w("Document ${doc.id} has null data in functional approach."); // Use logger.w
            return null; // Skip documents with null data
         }
 
@@ -58,8 +66,9 @@ List<ForRent> processFirestoreListingsFunctional(QuerySnapshot snapshot) {
             return Bedspace.fromJson(doc.id, data);
           }
         } catch (e) {
-          print("Error processing document ${doc.id}: $e");
-          print("Data: $data");
+          logger.e("Error processing document ${doc.id} in functional approach", error: e); // Use logger.e
+          // Optionally log data at debug level
+          // logger.d("Data causing error for ${doc.id} (functional): $data");
           return null; // Skip documents that cause errors during parsing
         }
       })
