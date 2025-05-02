@@ -15,6 +15,7 @@ class ForRent {
   final double latitude;
   final double longitude;
   final String otherDetails;
+  final double rating; // Added rating field
   // final String docId; // Removed: Document ID is typically handled outside the model.
 
   ForRent({
@@ -32,6 +33,7 @@ class ForRent {
     required this.latitude,
     required this.longitude,
     required this.otherDetails,
+    this.rating = 0.0, // Default rating to 0.0
     // required this.docId, // Removed
   });
 
@@ -54,6 +56,7 @@ class ForRent {
       'latitude': latitude,
       'longitude': longitude,
       'otherDetails': otherDetails,
+      'rating': rating, // Add rating to JSON
       // 'docId' is not stored within the document data itself.
       // 'type' field will be added by subclasses in their toJson overrides.
     };

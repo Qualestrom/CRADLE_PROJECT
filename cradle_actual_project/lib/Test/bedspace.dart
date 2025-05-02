@@ -53,6 +53,7 @@ class Bedspace extends ForRent {
     required super.latitude,
     required super.longitude,
     required super.otherDetails,
+    super.rating, // Forward rating
     // Keep 'this.' for fields specific to Bedspace
     required this.roommateCount,
     required this.bathroomShareCount,
@@ -79,6 +80,7 @@ class Bedspace extends ForRent {
       latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
       otherDetails: data['otherDetails'] as String? ?? '',
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0, // Parse rating
       // Bedspace specific fields
       roommateCount: data['roommateCount'] as int? ?? 0,
       bathroomShareCount: data['bathroomShareCount'] as int? ?? 0,

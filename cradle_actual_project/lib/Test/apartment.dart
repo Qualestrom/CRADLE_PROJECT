@@ -22,6 +22,7 @@ class Apartment extends ForRent {
     required super.latitude,
     required super.longitude,
     required super.otherDetails,
+    super.rating, // Forward rating
     // Keep 'this.' for fields specific to Apartment
     required this.noOfBedrooms,
     required this.noOfBathrooms,
@@ -44,6 +45,7 @@ class Apartment extends ForRent {
       latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
       otherDetails: data['otherDetails'] as String? ?? '',
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0, // Parse rating
       // Apartment specific fields
       noOfBedrooms: data['noOfBedrooms'] as int? ?? 0,
       noOfBathrooms: data['noOfBathrooms'] as int? ?? 0,
