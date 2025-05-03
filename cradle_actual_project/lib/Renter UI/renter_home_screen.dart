@@ -27,6 +27,8 @@ import '../Test/filters.dart';
 import '../Test/firestore_mapper.dart';
 import '../Test/apartment.dart'; // For Apartment class
 import '../Test/bedspace.dart'; // For GenderPreference enum
+import 'renter_bedspacer_screen.dart'; // Import the BEDSPACER detail screen
+import 'renter_apartment_details_screen.dart'; // Import the APARTMENT detail screen (assuming file rename)
 
 // Import for Firebase initialization options (if using flutterfire_cli)
 // import 'firebase_options.dart';
@@ -75,7 +77,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
   late Filters _tempFilters; // For the filter sheet
 
   // State for price range
-  RangeValues _priceRange = const RangeValues(0, 10000); // Default range
+  final RangeValues _priceRange = const RangeValues(0, 10000); // Default range
 
   // State for user info from SharedPreferences
   String? _accountType;
@@ -701,7 +703,28 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 5,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          // Navigate based on listing type
+          if (listing is Bedspace) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    BedspacerListing(listingId: listing.uid), // Pass ID
+              ),
+            );
+          } else if (listing is Apartment) {
+            // Navigate to the ApartmentDetailsScreen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    ApartmentDetailsScreen(listingId: listing.uid), // Pass uid
+              ),
+            );
+          }
+          // Add more conditions if other listing types exist
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

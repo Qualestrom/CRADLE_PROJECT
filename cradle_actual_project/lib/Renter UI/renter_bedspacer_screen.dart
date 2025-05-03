@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+// Import Firestore if you plan to fetch data here
+// import 'package:cloud_firestore/cloud_firestore.dart';
 
+/* Remove this main function when integrating into the main app
 void main() {
   runApp(BedspacerApp());
 }
@@ -17,14 +20,24 @@ class BedspacerApp extends StatelessWidget {
       home: BedspacerListing(),
     );
   }
-}
+} */
 
 class BedspacerListing extends StatefulWidget {
-  const BedspacerListing({super.key});
+  final String listingId; // <-- 1. Declare the field to hold the ID
+
+  const BedspacerListing({
+    super.key,
+    required this.listingId, // <-- 2. Add the required parameter to the constructor
+  });
 
   @override
   _BedspacerListingState createState() => _BedspacerListingState();
 }
+
+// --- IMPORTANT ---
+// You will now need to use `widget.listingId` inside _BedspacerListingState
+// to fetch the correct data from Firestore.
+// The current implementation below uses static placeholder data.
 
 class _BedspacerListingState extends State<BedspacerListing> {
   @override
@@ -36,7 +49,8 @@ class _BedspacerListingState extends State<BedspacerListing> {
         centerTitle: true,
         backgroundColor: Color(0xFF6B5B95),
       ),
-      body: SingleChildScrollView( // Added SingleChildScrollView for scrollability
+      body: SingleChildScrollView(
+        // Added SingleChildScrollView for scrollability
         child: Padding(
           padding: EdgeInsets.all(16.0), // Adjusted padding for mobile
           child: Column(
@@ -50,7 +64,8 @@ class _BedspacerListingState extends State<BedspacerListing> {
                   children: [
                     Image.network(
                       'https://th.bing.com/th/id/OIP.2n7-DyvF3U2b9bH0o9OxMAHaE8?w=540&h=360&rs=1&pid=ImgDetMain',
-                      height: MediaQuery.of(context).size.height * 0.25, // Dynamically adjusted height
+                      height: MediaQuery.of(context).size.height *
+                          0.25, // Dynamically adjusted height
                       fit: BoxFit.cover,
                       width: double.infinity,
                     ),
@@ -136,7 +151,8 @@ class _BedspacerListingState extends State<BedspacerListing> {
                                 color: Color(0xFF6B5B95),
                               ),
                               SizedBox(width: 5),
-                              Text('3.5', style: TextStyle(color: Color(0xFF6B5B95))),
+                              Text('3.5',
+                                  style: TextStyle(color: Color(0xFF6B5B95))),
                             ],
                           ),
                           ElevatedButton(
@@ -237,10 +253,22 @@ class _BedspacerListingState extends State<BedspacerListing> {
           content: SingleChildScrollView(
             child: Column(
               children: [
-                _review('★★★★★', 'Nice location, reasonable price. Close to public transportation and markets.', '- Maria Santos'),
-                _review('★★★☆☆', 'Decent bedspace. Bathrooms are clean but can get crowded during peak hours.', '- John Garcia'),
-                _review('★★★☆☆', 'Good for students on a budget. The curfew is strictly implemented.', '- Lisa Reyes'),
-                _review('★★☆☆☆', 'WiFi is unstable during the evening. Location is good but the place is noisy.', '- Mark Tan'),
+                _review(
+                    '★★★★★',
+                    'Nice location, reasonable price. Close to public transportation and markets.',
+                    '- Maria Santos'),
+                _review(
+                    '★★★☆☆',
+                    'Decent bedspace. Bathrooms are clean but can get crowded during peak hours.',
+                    '- John Garcia'),
+                _review(
+                    '★★★☆☆',
+                    'Good for students on a budget. The curfew is strictly implemented.',
+                    '- Lisa Reyes'),
+                _review(
+                    '★★☆☆☆',
+                    'WiFi is unstable during the evening. Location is good but the place is noisy.',
+                    '- Mark Tan'),
               ],
             ),
           ),
