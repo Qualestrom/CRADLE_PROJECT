@@ -22,13 +22,14 @@ import 'package:logger/logger.dart';
 import 'dart:async';
 
 // Import your models and helpers (adjust paths as needed)
-import '../Test/for_rent.dart';
+import '../Test/for_rent.dart'; // Ensure this import exists
 import '../Test/filters.dart';
 import '../Test/firestore_mapper.dart';
 import '../Test/apartment.dart'; // For Apartment class
 import '../Test/bedspace.dart'; // For GenderPreference enum
 import 'renter_bedspacer_screen.dart'; // Import the BEDSPACER detail screen
 import 'renter_apartment_details_screen.dart'; // Import the APARTMENT detail screen (assuming file rename)
+import '../utils/string_extensions.dart'; // Import the new extension file
 
 // Import for Firebase initialization options (if using flutterfire_cli)
 // import 'firebase_options.dart';
@@ -633,7 +634,10 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                       const Text("Price Range",
                           style: TextStyle(fontWeight: FontWeight.bold)),
                       RangeSlider(
-                        values: _priceRange,
+                        // Use _tempFilters.priceRange for the slider's current values
+                        values: _tempFilters.priceRange ??
+                            const RangeValues(
+                                0, 10000), // Provide default if null
                         min: 0,
                         max: 10000,
                         divisions: 100,
@@ -838,13 +842,5 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
         ),
       ),
     );
-  }
-}
-
-// Helper extension method (optional, place outside the class or in a utility file)
-extension StringExtension on String {
-  String capitalizeFirstLetter() {
-    if (isEmpty) return this;
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
