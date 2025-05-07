@@ -50,21 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCY8uclihfD1c2X6iO_nMDKoM3ngVMO0ho',
-    appId: '1:610125770544:android:a837a183dab6dc835362f5',
-    messagingSenderId: '610125770544',
-    projectId: 'cradle-1b716',
-    databaseURL: 'https://cradle-1b716-default-rtdb.firebaseio.com',
-    storageBucket: 'cradle-1b716.firebasestorage.app',
+    apiKey: 'AIzaSyC5YRDmNvs9sTjbAPsYE1uE7CmCZpsG-9Y',
+    appId: '1:504803768477:android:21db064956f8709905bc74',
+    messagingSenderId: '504803768477',
+    projectId: 'gch-dorm',
+    storageBucket: 'gch-dorm.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDslKywWACMrkhGC_AmlYNu0NPevUF6ZbU',
-    appId: '1:610125770544:ios:5c07ae037bce10935362f5',
-    messagingSenderId: '610125770544',
-    projectId: 'cradle-1b716',
-    databaseURL: 'https://cradle-1b716-default-rtdb.firebaseio.com',
-    storageBucket: 'cradle-1b716.firebasestorage.app',
+    apiKey: 'AIzaSyBm2I8XXypunFRwZr88sen8HUn1Okn_tPw',
+    appId: '1:504803768477:ios:919a3550d85f15d305bc74',
+    messagingSenderId: '504803768477',
+    projectId: 'gch-dorm',
+    storageBucket: 'gch-dorm.appspot.com',
     iosBundleId: 'com.example.cradleActualProject',
   );
 

@@ -41,6 +41,8 @@ class Bedspace extends ForRent {
   Bedspace({
     // Use super parameters to forward directly to ForRent constructor
     required super.uid,
+    super.ownerId, // <-- Add this to accept and pass to ForRent
+    super.imageDownloadUrl, // <-- Add this to accept and pass to ForRent
     required super.imageFilename,
     required super.name,
     required super.contactPerson,
@@ -67,8 +69,11 @@ class Bedspace extends ForRent {
     GenderPreference genderValue = parseGenderPreference(data['gender']);
 
     return Bedspace(
-      uid: data['uid'] as String? ?? '', // Use uid from data, id is the doc ID
-      imageFilename: data['_imageFilename'] as String? ?? '',
+      uid: id, // Use the document ID passed as 'id'
+      ownerId: data['uid'] as String? ?? '', // <-- Read from Firestore data
+      imageDownloadUrl:
+          data['imageDownloadUrl'] as String?, // <-- Read from Firestore data
+      imageFilename: data['imageFilename'] as String? ?? '',
       name: data['name'] as String? ?? '',
       contactPerson: data['contactPerson'] as String? ?? '',
       contactNumber: data['contactNumber'] as String? ?? '',

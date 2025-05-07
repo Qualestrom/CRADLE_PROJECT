@@ -2,6 +2,7 @@
 
 class ForRent {
   final String uid;
+  final String? ownerId;
   final String imageFilename;
   String? imageDownloadUrl; // Renamed field to store the download URL
   final String name;
@@ -20,6 +21,7 @@ class ForRent {
 
   ForRent({
     required this.uid,
+    this.ownerId,
     required this.imageFilename,
     this.imageDownloadUrl, // Renamed constructor parameter
     required this.name,
@@ -41,7 +43,7 @@ class ForRent {
   /// Subclasses should override this, call super.toJson(), and add their specific fields.
   Map<String, dynamic> toJson() {
     return {
-      'uid': uid,
+      'ownerId': ownerId,
       'imageFilename':
           // Note: imageUrl is NOT typically stored back in Firestore
           imageFilename, // Ensure this field name matches Firestore

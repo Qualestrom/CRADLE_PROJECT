@@ -2,35 +2,29 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/services.dart'; // Import for SystemChrome
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:logger/logger.dart';
 import 'dart:async';
 
 // Import your models and helpers (adjust paths as needed)
-import '../Test/for_rent.dart'; 
+import '../Test/for_rent.dart';
 import '../Test/filters.dart';
 import '../Test/firestore_mapper.dart';
-import '../Test/apartment.dart'; 
-import '../Test/bedspace.dart'; 
-import 'renter_bedspacer_screen.dart'; 
-import 'renter_apartment_details_screen.dart'; 
-
-// String extension to capitalize first letter
-extension StringExtension on String {
-  String capitalizeFirstLetter() {
-    if (isEmpty) return this;
-    return "${this[0].toUpperCase()}${substring(1)}";
-  }
-}
+import '../Test/apartment.dart';
+import '../Test/bedspace.dart';
+import 'renter_bedspacer_screen.dart';
+import 'renter_apartment_details_screen.dart';
+import '../utils/string_extensions.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); 
-  await Firebase.initializeApp(); 
-  runApp(const MyApp()); 
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -45,29 +39,32 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const ApartmentListings(),
+      home: const RenterHomeScreen(),
     );
   }
 }
 
-class ApartmentListings extends StatefulWidget {
-  const ApartmentListings({super.key});
+class RenterHomeScreen extends StatefulWidget {
+  const RenterHomeScreen({super.key});
 
   @override
-  State<ApartmentListings> createState() => _ApartmentListingsState();
+  State<RenterHomeScreen> createState() => _RenterHomeScreenState();
 }
 
-class _ApartmentListingsState extends State<ApartmentListings> {
+class _RenterHomeScreenState extends State<RenterHomeScreen> {
   // Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // final FirebaseStorage _storage = FirebaseStorage.instance;
   final Logger logger = Logger();
 
   // State for filters
   Filters _activeFilters = Filters();
   late Filters _tempFilters; // For the filter sheet
-  
+
+  // State for price range
+  // final RangeValues _priceRange = const RangeValues(0, 10000); // Default range
+
   // Key for the Scaffold to control the drawer
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -245,7 +242,9 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: <Widget>[
-                          const Text("Filters", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          const Text("Filters",
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold)),
                           IconButton(
                             icon: const Icon(Icons.close),
                             onPressed: () => Navigator.pop(context),
@@ -253,7 +252,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      const Text("Type", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("Type",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       RadioListTile<String?>(
                         title: const Text('Apartment'),
                         value: 'apartment',
@@ -282,7 +282,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                         visualDensity: VisualDensity.compact,
                       ),
                       const SizedBox(height: 15),
-                      const Text("Contract", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("Contract",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       RadioListTile<bool?>(
                         title: const Text('With Contract'),
                         value: true,
@@ -311,16 +312,19 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                         visualDensity: VisualDensity.compact,
                       ),
                       const SizedBox(height: 15),
-                      const Text("Gender", style: TextStyle(fontWeight: FontWeight.bold)),
-                      _buildGenderRadioTile(filterSetState, 'Male Only', 
+                      const Text("Gender",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      _buildGenderRadioTile(filterSetState, 'Male Only',
                           GenderPreference.maleOnly.name),
                       _buildGenderRadioTile(filterSetState, 'Female Only',
                           GenderPreference.femaleOnly.name),
                       _buildGenderRadioTile(filterSetState, 'Any Gender',
                           GenderPreference.any.name),
-                      _buildGenderRadioTile(filterSetState, 'Not Specified', null),
+                      _buildGenderRadioTile(
+                          filterSetState, 'Not Specified', null),
                       const SizedBox(height: 15),
-                      const Text("Street", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("Street",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
@@ -337,15 +341,16 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                           ..insert(
                               0,
                               const DropdownMenuItem<String>(
-                                  value: null,
-                                  child: Text('Any Street'))),
+                                  value: null, child: Text('Any Street'))),
                         onChanged: (String? newValue) => filterSetState(
                             () => _tempFilters.street = newValue),
                       ),
                       const SizedBox(height: 15),
-                      const Text("Price Range", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text("Price Range",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       RangeSlider(
-                        values: _tempFilters.priceRange ?? const RangeValues(0, 10000),
+                        values: _tempFilters.priceRange ??
+                            const RangeValues(0, 10000),
                         min: 0,
                         max: 10000,
                         divisions: 100,
@@ -541,64 +546,111 @@ class _ApartmentListingsState extends State<ApartmentListings> {
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(
-              child: Text('No listings found matching your criteria.'));
+              child: Text('No listings found matching your Firestore query.'));
         }
 
-        // Process Firestore data into ForRent objects
-        List<ForRent> listings = processFirestoreListings(snapshot.data!);
+        // Use FutureBuilder to handle the async processing of listings (fetching image URLs)
+        return FutureBuilder<List<ForRent>>(
+            future:
+                processFirestoreListings(snapshot.data!), // This is now async
+            builder: (context, asyncListingsSnapshot) {
+              if (asyncListingsSnapshot.connectionState ==
+                  ConnectionState.waiting) {
+                // You might want a more subtle loading indicator if images are loading one by one
+                // or if this takes time. For now, a general one.
+                return const Center(
+                    child: CircularProgressIndicator(
+                        key: ValueKey("listings_loading")));
+              }
 
-        // Apply Client-Side Filters
-        listings = listings.where((listing) {
-          // Price Range Filter - FIXED: Now properly checking against active filters
-          if (_activeFilters.priceRange != null &&
-              (listing.price < _activeFilters.priceRange!.start ||
-                  listing.price > _activeFilters.priceRange!.end)) {
-            return false;
-          }
-          // Street Filter (Case-insensitive contains)
-          if (_activeFilters.street != null &&
-              !listing.address
-                  .toLowerCase()
-                  .contains(_activeFilters.street!.toLowerCase())) {
-            return false;
-          }
-          // Gender Filter (Only apply if it's a Bedspace)
-          if (_activeFilters.gender != null &&
-              listing is Bedspace &&
-              listing.gender.name != _activeFilters.gender) {
-            return false;
-          }
-          return true;
-        }).toList();
+              if (asyncListingsSnapshot.hasError) {
+                logger.e('Error processing listings (image URLs)',
+                    error: asyncListingsSnapshot.error);
+                return Center(
+                    child: Text(
+                        'Error loading listing details: ${asyncListingsSnapshot.error}'));
+              }
 
-        if (listings.isEmpty) {
-          return const Center(
-              child: Text('No listings found matching all filter criteria.'));
-        }
+              if (!asyncListingsSnapshot.hasData ||
+                  asyncListingsSnapshot.data!.isEmpty) {
+                return const Center(
+                    child: Text('No listings found after processing.'));
+              }
 
-        // Use ListView.builder with the filtered list
-        return ListView.builder(
-          itemCount: listings.length,
-          itemBuilder: (context, index) {
-            final ForRent listing = listings[index]; 
-            return buildListing(listing);
-          },
-        );
+              List<ForRent> listings = asyncListingsSnapshot.data!;
+
+              // Apply Client-Side Filters
+              listings = listings.where((listing) {
+                // Price Range Filter - FIXED: Now properly checking against active filters
+                if (_activeFilters.priceRange != null &&
+                    (listing.price < _activeFilters.priceRange!.start ||
+                        listing.price > _activeFilters.priceRange!.end)) {
+                  return false;
+                }
+                // Street Filter (Case-insensitive contains)
+                if (_activeFilters.street != null &&
+                    !listing.address
+                        .toLowerCase()
+                        .contains(_activeFilters.street!.toLowerCase())) {
+                  return false;
+                }
+                // Gender Filter (Only apply if it's a Bedspace)
+                if (_activeFilters.gender != null &&
+                    listing is Bedspace &&
+                    listing.gender.name != _activeFilters.gender) {
+                  return false;
+                }
+                return true;
+              }).toList();
+
+              if (listings.isEmpty) {
+                return const Center(
+                    child: Text(
+                        'No listings found matching all filter criteria.'));
+              }
+
+              // Use ListView.builder with the filtered list
+              return ListView.builder(
+                itemCount: listings.length,
+                itemBuilder: (context, index) {
+                  final ForRent listing =
+                      listings[index]; // Get the actual listing object
+                  return buildListing(listing); // Pass the ForRent object
+                },
+              );
+            });
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Set the system UI overlay style for the status bar
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      // Status bar color for Android. For a seamless look with your AppBar,
+      // you might want it transparent or matching your AppBar's background.
+      statusBarColor: Colors.transparent, // Or match your AppBar background
+      // Status bar icon brightness (Android). Brightness.dark means dark icons.
+      statusBarIconBrightness: Brightness.dark,
+      // Status bar brightness (iOS). Brightness.dark means dark content (icons/text).
+      statusBarBrightness: Brightness
+          .light, // For iOS, Brightness.light means light background, dark content
+    ));
+
     return Scaffold(
       key: _scaffoldKey,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(70),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          padding: const EdgeInsets.only(
+              top: 32.0,
+              bottom: 10.0,
+              left: 16.0,
+              right: 16.0), // Increased top padding
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFECE6F0), // FIXED: Using the color scheme from design
+              color: const Color(
+                  0xFFECE6F0), // FIXED: Using the color scheme from design
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -614,14 +666,13 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                 const Text(
                   'Home',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black87
-                  ),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.black87),
                 ),
                 IconButton(
                   icon: Icon(
-                    Icons.filter_alt_outlined, 
+                    Icons.filter_alt_outlined,
                     color: _activeFilters.isFiltering
                         ? Theme.of(context).colorScheme.primary
                         : Colors.black87, // Highlight if filters active
@@ -643,7 +694,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
   // Custom listing widget for ForRent object
   Widget buildListing(ForRent listing) {
     return Card(
-      color: const Color(0xFFF7F2FA), // FIXED: Using the color scheme from design
+      color:
+          const Color(0xFFF7F2FA), // FIXED: Using the color scheme from design
       margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 5,
@@ -661,7 +713,8 @@ class _ApartmentListingsState extends State<ApartmentListings> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ApartmentDetailsScreen(listingId: listing.uid),
+                builder: (context) =>
+                    ApartmentDetailsScreen(listingId: listing.uid),
               ),
             );
           }
@@ -675,9 +728,12 @@ class _ApartmentListingsState extends State<ApartmentListings> {
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.purple[400], // FIXED: Using the color scheme from design
+                    backgroundColor: Colors.purple[
+                        400], // FIXED: Using the color scheme from design
                     child: Text(
-                        listing.name.isNotEmpty ? listing.name[0].toUpperCase() : '',
+                        listing.name.isNotEmpty
+                            ? listing.name[0].toUpperCase()
+                            : '',
                         style: const TextStyle(color: Colors.white)),
                   ),
                   const SizedBox(width: 8),
@@ -685,17 +741,23 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(listing.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(listing.name,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         Text(
-                          (listing is Apartment
-                              ? 'Apartment'
-                              : (listing is Bedspace ? 'Bedspace' : 'Listing'))
-                          .capitalizeFirstLetter(),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            (listing is Apartment
+                                    ? 'Apartment'
+                                    : (listing is Bedspace
+                                        ? 'Bedspace'
+                                        : 'Listing'))
+                                .capitalizeFirstLetter(),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
-                  const Icon(Icons.more_vert, color: Colors.grey), // FIXED: Using the correct icon
+                  const Icon(Icons.more_vert,
+                      color: Colors.grey), // FIXED: Using the correct icon
                 ],
               ),
             ),
@@ -724,36 +786,43 @@ class _ApartmentListingsState extends State<ApartmentListings> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('₱${listing.price.toStringAsFixed(0)} / Month', 
+                      Text('₱${listing.price.toStringAsFixed(0)} / Month',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const Icon(Icons.bookmark_border, color: Color(0xFF878585)), // FIXED: Using the correct icon
+                      const Icon(Icons.bookmark_border,
+                          color: Color(
+                              0xFF878585)), // FIXED: Using the correct icon
                     ],
                   ),
                   // Contract display based on contract value
-                  Text(listing.contract > 0 
-                      ? '${listing.contract} Year Contract' 
+                  Text(listing.contract > 0
+                      ? '${listing.contract} Year Contract'
                       : 'No Contract'),
                   Row(
                     children: [
                       // FIXED: Dynamic stars based on listing rating
                       ...List.generate(5, (index) {
                         if (index < listing.rating.floor()) {
-                          return const Icon(Icons.star, color: Color(0xFF878585), size: 16);
+                          return const Icon(Icons.star,
+                              color: Color(0xFF878585), size: 16);
                         }
-                        if (index < listing.rating.ceil() && listing.rating % 1 >= 0.5) {
-                          return const Icon(Icons.star_half, color: Color(0xFF878585), size: 16);
+                        if (index < listing.rating.ceil() &&
+                            listing.rating % 1 >= 0.5) {
+                          return const Icon(Icons.star_half,
+                              color: Color(0xFF878585), size: 16);
                         }
-                        return const Icon(Icons.star_border, color: Color(0xFF878585), size: 16);
+                        return const Icon(Icons.star_border,
+                            color: Color(0xFF878585), size: 16);
                       }),
                       const SizedBox(width: 4),
-                      Text(listing.rating.toStringAsFixed(1), 
-                           style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                      Text(listing.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 14)),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    listing.description.isNotEmpty 
-                        ? listing.description 
+                    listing.otherDetails.isNotEmpty
+                        ? listing.otherDetails
                         : 'This is comfy and has all the amenities you need.',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
@@ -766,4 +835,3 @@ class _ApartmentListingsState extends State<ApartmentListings> {
     );
   }
 }
-
