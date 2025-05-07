@@ -11,20 +11,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cradle_actual_project/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('CradleApp loads LandingPage smoke test',
+      (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const CradleApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Example: Verify that the LandingPage (which shows an image initially) is present.
+    // This is a very basic check and would need to be more specific.
+    // For instance, you might look for a specific image asset or a key.
+    // As LandingPage has a delay, you might need tester.pumpAndSettle() or pump(Duration)
+    // expect(find.byType(Image), findsWidgets); // This is a generic check
+    expect(find.text('Cradle'),
+        findsOneWidget); // Checks for the app title in MaterialApp
   });
 }

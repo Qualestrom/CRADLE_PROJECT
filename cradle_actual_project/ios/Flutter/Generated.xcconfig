@@ -1,6 +1,6 @@
 // This is a generated file; do not edit or check into version control.
-FLUTTER_ROOT=C:\Users\TUF\Downloads\flutter
-FLUTTER_APPLICATION_PATH=C:\Users\TUF\Documents\GitHub\CRADLE_PROJECT\cradle_actual_project
+FLUTTER_ROOT=C:\Users\Christopher\Desktop\flutter
+FLUTTER_APPLICATION_PATH=C:\Users\Christopher\Desktop\test\CRADLE_PROJECT\cradle_actual_project
 COCOAPODS_PARALLEL_CODE_SIGN=true
 FLUTTER_TARGET=lib\main.dart
 FLUTTER_BUILD_DIR=build

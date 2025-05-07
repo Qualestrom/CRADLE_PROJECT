@@ -1,0 +1,21 @@
+[debug] [2025-05-06T08:59:56.740Z] ----------------------------------------------------------------------
+[debug] [2025-05-06T08:59:56.742Z] Command:       C:\Users\CHRIST~1\Desktop\test\CRADLE~2\firebase-tools-instant-win.exe C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\firebase-tools\lib\bin\firebase --config C:\Users\Christopher\Desktop\test\CRADLE_PROJECT
+[debug] [2025-05-06T08:59:56.743Z] CLI Version:   14.2.2
+[debug] [2025-05-06T08:59:56.743Z] Platform:      win32
+[debug] [2025-05-06T08:59:56.743Z] Node Version:  v20.18.2
+[debug] [2025-05-06T08:59:56.743Z] Time:          Tue May 06 2025 16:59:56 GMT+0800 (Singapore Standard Time)
+[debug] [2025-05-06T08:59:56.743Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-05-06T08:59:56.745Z] TypeError: Cannot read properties of undefined (reading '0')
+    at Command.<anonymous> (C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\firebase-tools\lib\index.js:58:21)
+    at Command.listener [as _actionHandler] (C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\commander\index.js:413:31)
+    at Command._parseCommand (C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\commander\index.js:914:14)
+    at Command.parse (C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\commander\index.js:717:10)
+    at cli (C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\firebase-tools\lib\bin\cli.js:127:30)
+    at Object.<anonymous> (C:\Users\Christopher\.cache\firebase\tools\lib\node_modules\firebase-tools\lib\bin\firebase.js:18:5)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1898:32)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+[error] 
+[error] Error: An unexpected error has occurred.

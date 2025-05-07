@@ -44,12 +44,8 @@ flutter {
     source = "../.."
 }
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
-    implementation("com.google.firebase:firebase-analytics")   
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0")) // Use the latest BoM
+    implementation("com.google.firebase:firebase-analytics") // Added analytics, ensure it's intended
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-auth") // Ensure this is also present
 }
-// dependencies {
-//     classpath("com.android.tools.build:gradle:8.0.2")
-//     classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0")
-//     classpath("com.google.gms:google-services:4.4.2")
-//     classpath("dev.flutter:flutter-gradle-plugin:1.0.0")
-// }apply plugin: "com.google.gms.google-services"
