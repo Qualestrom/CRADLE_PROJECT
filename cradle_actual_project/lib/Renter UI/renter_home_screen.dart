@@ -10,11 +10,11 @@ import 'package:logger/logger.dart';
 import 'dart:async';
 
 // Import your models and helpers (adjust paths as needed)
-import '../Test/for_rent.dart';
-import '../Test/filters.dart';
-import '../Test/firestore_mapper.dart';
-import '../Test/apartment.dart';
-import '../Test/bedspace.dart';
+import '../Back-End/for_rent.dart';
+import '../Back-End/filters.dart';
+import '../Back-End/firestore_mapper.dart';
+import '../Back-End/apartment.dart';
+import '../Back-End/bedspace.dart';
 import 'renter_bedspacer_screen.dart';
 import 'renter_apartment_details_screen.dart';
 import '../utils/string_extensions.dart';
@@ -628,6 +628,112 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
     );
   }
 
+  // --- Report Listing Methods ---
+  void _showReportDialog(ForRent listing) {
+    final reportReasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>(); // For validating the reason
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Report Listing'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                    "You are reporting the listing: \"${listing.name.capitalizeFirstLetter()}\". Please state your reason below.",
+                    style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 15),
+                TextFormField(
+                  controller: reportReasonController,
+                  decoration: const InputDecoration(
+                    hintText: 'Reason for reporting...',
+                    border: OutlineInputBorder(),
+                    labelText: 'Report Reason',
+                  ),
+                  maxLines: 3,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a reason for your report.';
+                    }
+                    if (value.trim().length < 10) {
+                      return 'Please provide a more detailed reason (at least 10 characters).';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              child: const Text('Submit Report'),
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  _submitReport(listing, reportReasonController.text.trim());
+                  Navigator.of(dialogContext).pop(); // Close the dialog
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _submitReport(ForRent listing, String reason) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('You must be logged in to submit a report.')),
+      );
+      return;
+    }
+    if (!_isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No internet connection. Please try again later.')),
+      );
+      return;
+    }
+
+    try {
+      await _db.collection('reports').add({
+        'listingId': listing.uid, // UID of the reported listing
+        'listingName': listing.name, // Name of the listing for easier reference
+        // 'listingOwnerId': listing.ownerId, // If you have ownerId on ForRent model
+        'reporterUid': currentUser.uid,
+        'reporterEmail': currentUser.email, // Optional: for easier contact
+        'reason': reason,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'pending_review', // Initial status of the report
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Report submitted successfully. Thank you!')),
+      );
+      logger.i(
+          "Report submitted for listing ${listing.uid} by user ${currentUser.uid}");
+    } catch (e, s) {
+      logger.e('Error submitting report', error: e, stackTrace: s);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit report: ${e.toString()}')),
+      );
+    }
+  }
+  // --- End Report Listing Methods ---
+
   @override
   Widget build(BuildContext context) {
     // Set the system UI overlay style for the status bar
@@ -760,8 +866,22 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.more_vert,
-                      color: Colors.grey), // FIXED: Using the correct icon
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.grey),
+                    onSelected: (String result) {
+                      if (result == 'report') {
+                        _showReportDialog(listing);
+                      }
+                      // Add more actions here if needed in the future
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        child: Text('Report'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

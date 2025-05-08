@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../Test/apartment.dart';
+import '../Back-End/apartment.dart';
+import '../Menus/reviews_screen.dart'; // Import the new ReviewsScreen
 
 class ApartmentListing extends StatefulWidget {
   final String listingId; // Added to receive the apartment ID
@@ -29,28 +30,6 @@ class _ApartmentListingState extends State<ApartmentListing> {
   bool _isElectricityIncluded = false;
   bool _isWifiIncluded = false;
   bool _isLpgIncluded = false;
-
-  // Placeholder data for reviews - will be replaced with actual data if available
-  final List<Map<String, String>> _reviews = [
-    {
-      'stars': '★★★★★',
-      'text':
-          'Great location, clean and spacious rooms. The amenities are all working properly.',
-      'author': '- Maria Santos',
-    },
-    {
-      'stars': '★★★★☆',
-      'text':
-          'Nice apartment, good value for money. The location is convenient but can be noisy at night.',
-      'author': '- John Garcia',
-    },
-    {
-      'stars': '★★★★★',
-      'text':
-          'Very accommodating landlord. The place is well-maintained and secure.',
-      'author': '- Lisa Reyes',
-    },
-  ];
 
   @override
   void initState() {
@@ -122,13 +101,13 @@ class _ApartmentListingState extends State<ApartmentListing> {
   }
 
   void _showReviewsModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return ReviewsModal(
-            reviews: _reviews,
-            apartmentName: _apartmentData?.name ?? 'Apartment');
-      },
+    if (_apartmentData == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReviewsScreen(
+            listingId: widget.listingId, listingName: _apartmentData!.name),
+      ),
     );
   }
 
@@ -671,64 +650,6 @@ class _ApartmentListingState extends State<ApartmentListing> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class ReviewsModal extends StatelessWidget {
-  final List<Map<String, String>> reviews;
-  final String apartmentName;
-
-  const ReviewsModal(
-      {super.key, required this.reviews, required this.apartmentName});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Reviews for $apartmentName',
-          style: const TextStyle(color: Color(0xFF6750A4))),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: reviews.map((review) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    review['stars']!,
-                    style: const TextStyle(color: Colors.amber, fontSize: 18),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    review['text']!,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Text(
-                      review['author']!,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ),
-                  if (review != reviews.last) Divider(color: Colors.grey[300]),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: const Text('Close'),
-        ),
-      ],
     );
   }
 }

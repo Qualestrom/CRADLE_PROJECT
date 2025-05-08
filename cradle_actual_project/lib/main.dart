@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core
 import 'User/landing_page.dart'; // Import the landing page
-import 'firebase_options.dart'; // Import Firebase options
+import 'utils/firebase_options.dart'; // Import Firebase options
+import 'package:logging/logging.dart'; // Import the logging package
 // Import other necessary pages if needed later
 // Import Firebase options if using flutterfire_cli (uncomment if needed)
 // import 'firebase_options.dart';
+
+void _setupLogging() {
+  Logger.root.level = Level.ALL; // Log all messages by default.
+  Logger.root.onRecord.listen((record) {
+    // Simple console output for logs.
+    // You can customize this to write to a file, send to a remote server, etc.
+    // ignore: avoid_print
+    print(
+        '${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
+  });
+}
 
 Future<void> main() async {
   // Make main async
   WidgetsFlutterBinding
       .ensureInitialized(); // Ensure Flutter bindings are ready
+  _setupLogging(); // Initialize logging
   await Firebase.initializeApp(
     options:
         DefaultFirebaseOptions.currentPlatform, // Initialize with options here

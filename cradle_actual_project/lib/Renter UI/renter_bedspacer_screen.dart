@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../Test/bedspace.dart';
+import '../Back-End/bedspace.dart';
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../Menus/reviews_screen.dart'; // Import the new ReviewsScreen
 
 class BedspacerListing extends StatefulWidget {
   final String listingId;
@@ -129,86 +130,15 @@ class _BedspacerListingState extends State<BedspacerListing> {
     );
   }
 
-  // Show reviews modal
+  // Navigate to Reviews Screen
   void _showReviewsModal(BuildContext context) {
     if (_bedspaceData == null) return;
-
-    // For now, we'll use placeholder reviews
-    // In a real app, these could be fetched from Firestore
-    final List<Map<String, String>> reviews = [
-      {
-        'stars': '★★★★☆',
-        'text':
-            'Clean and affordable place. Good internet connection. Can get a bit crowded during peak hours.',
-        'author': '- Mark Tan',
-      },
-      {
-        'stars': '★★★★★',
-        'text':
-            'Friendly housemates and accommodating owner. The location is very convenient for commuting.',
-        'author': '- Sarah Lim',
-      },
-      {
-        'stars': '★★★☆☆',
-        'text':
-            'Basic amenities are provided. The curfew is a bit early but understandable for security.',
-        'author': '- David Lee',
-      },
-    ];
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Reviews for ${_bedspaceData!.name}',
-              style: const TextStyle(color: Color(0xFF6750A4))),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: reviews.map((review) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        review['stars']!,
-                        style:
-                            const TextStyle(color: Colors.amber, fontSize: 18),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        review['text']!,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: Text(
-                          review['author']!,
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                      ),
-                      if (review != reviews.last)
-                        Divider(color: Colors.grey[300]),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReviewsScreen(
+            listingId: widget.listingId, listingName: _bedspaceData!.name),
+      ),
     );
   }
 
