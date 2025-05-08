@@ -1,30 +1,55 @@
 import 'package:flutter/material.dart';
-// Import Firestore and your Apartment model
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../Test/apartment.dart'; // Adjust path if needed
-import 'package:logger/logger.dart'; // Import logger
-import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
+import 'package:logger/logger.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../Test/apartment.dart';
 
-// Renamed widget to reflect its purpose
-class ApartmentDetailsScreen extends StatefulWidget {
-  final String listingId; // To receive the Apartment's uid
+class ApartmentListing extends StatefulWidget {
+  final String listingId; // Added to receive the apartment ID
 
-  const ApartmentDetailsScreen({
+  const ApartmentListing({
     super.key,
     required this.listingId, // Make it required
   });
 
   @override
-  _ApartmentDetailsScreenState createState() => _ApartmentDetailsScreenState();
+  _ApartmentListingState createState() => _ApartmentListingState();
 }
 
-// Renamed state class
-class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
-  // --- State Variables for Data Fetching ---
-  Apartment? _apartmentData; // Store fetched apartment data
+class _ApartmentListingState extends State<ApartmentListing> {
+  // --- State Variables for Data Fetching (from first file) ---
+  Apartment? _apartmentData;
   bool _isLoading = true;
   String? _error;
-  final Logger _logger = Logger(); // Initialize logger
+  final Logger _logger = Logger();
+
+  // --- Helper variables for UI display ---
+  // These will be populated from Firestore data once fetched
+  bool _isWaterIncluded = false;
+  bool _isElectricityIncluded = false;
+  bool _isWifiIncluded = false;
+  bool _isLpgIncluded = false;
+  
+  // Placeholder data for reviews - will be replaced with actual data if available
+  final List<Map<String, String>> _reviews = [
+    {
+      'stars': '★★★★★',
+      'text':
+          'Great location, clean and spacious rooms. The amenities are all working properly.',
+      'author': '- Maria Santos',
+    },
+    {
+      'stars': '★★★★☆',
+      'text':
+          'Nice apartment, good value for money. The location is convenient but can be noisy at night.',
+      'author': '- John Garcia',
+    },
+    {
+      'stars': '★★★★★',
+      'text': 'Very accommodating landlord. The place is well-maintained and secure.',
+      'author': '- Lisa Reyes',
+    },
+  ];
 
   @override
   void initState() {
@@ -49,19 +74,30 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
       if (mounted) {
         if (docSnapshot.exists) {
           // Correctly call fromJson with id and data
-          // Cast data() to the expected Map type
           final data = docSnapshot.data();
           if (data is Map<String, dynamic>) {
-            // Check the type explicitly
             _apartmentData = Apartment.fromJson(docSnapshot.id, data);
+            
+            // Set utility inclusions based on billsIncluded array
+            if (_apartmentData != null) {
+              _isWaterIncluded = _apartmentData!.billsIncluded.contains('Water');
+              _isElectricityIncluded = _apartmentData!.billsIncluded.contains('Electricity');
+              _isWifiIncluded = _apartmentData!.billsIncluded.contains('WiFi') || 
+                              _apartmentData!.billsIncluded.contains('Internet');
+              _isLpgIncluded = _apartmentData!.billsIncluded.contains('LPG') || 
+                             _apartmentData!.billsIncluded.contains('Gas');
+            }
+            
+            setState(() {
+              _isLoading = false;
+            });
           } else {
-            // Handle case where data is null even if document exists
-            _error = "Apartment data is missing or corrupt.";
+            setState(() {
+              _error = "Apartment data is missing or corrupt.";
+              _isLoading = false;
+            });
             _logger.w("Document ${widget.listingId} exists but data is null.");
           }
-          setState(() {
-            _isLoading = false;
-          });
         } else {
           setState(() {
             _error = "Apartment listing not found.";
@@ -81,355 +117,582 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // --- Handle Loading State ---
-    if (_isLoading) {
-      return Scaffold(
-          appBar: AppBar(title: const Text("Loading...")),
-          body: const Center(child: CircularProgressIndicator()));
-    }
-    // --- Handle Error State ---
-    if (_error != null || _apartmentData == null) {
-      return Scaffold(
-          appBar: AppBar(title: const Text("Error")),
-          body: Center(
-              child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(_error ?? 'Apartment data could not be loaded.',
-                textAlign: TextAlign.center),
-          )));
-    }
-
-    // --- Placeholder UI (Needs to be updated with fetched data) ---
-    return Scaffold(
-      backgroundColor: Color(0xFFF5F5F5),
-      appBar: AppBar(
-        // Use fetched data for title
-        title: Text(_apartmentData?.name ?? 'Apartment Details'),
-        centerTitle: true,
-        backgroundColor: Color(0xFF6B5B95),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(16.0), // Adjusted padding for mobile size
-          child: Column(
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 5,
-                // --- Start Example Card Content (Update with Apartment fields) ---
-                child: Column(
-                  children: [
-                    Image.network(
-                      // Use fetched image URL, provide a fallback
-                      _apartmentData!.imageDownloadUrl != null &&
-                              _apartmentData!.imageDownloadUrl!.isNotEmpty
-                          ? _apartmentData!.imageDownloadUrl!
-                          : 'https://via.placeholder.com/400x250?text=No+Image',
-                      height: MediaQuery.of(context).size.height *
-                          0.25, // Scalable image height
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      // Add error builder for robustness
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: MediaQuery.of(context).size.height * 0.25,
-                        color: Colors.grey[300],
-                        child: Icon(Icons.broken_image,
-                            color: Colors.grey[600], size: 50),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Use fetched data
-                              Text(
-                                _apartmentData!
-                                    .name, // Use ! because we checked for null above
-                                style: TextStyle(
-                                  fontSize: 22, // Adjusted font size for mobile
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF6B5B95),
-                                ),
-                              ),
-                              // Use fetched data
-                              SizedBox(height: 5),
-                              Text(_apartmentData!.address,
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 14, // Adjusted font size
-                                  )),
-                              SizedBox(height: 5),
-                              // Use fetched contact person
-                              Text(_apartmentData!.contactPerson,
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 12, // Adjusted font size
-                                  )),
-                              // Display Contact Number
-                              SizedBox(height: 3),
-                              Text(_apartmentData!.contactNumber,
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 12,
-                                  )),
-                            ],
-                          ),
-                          // --- Example: Display number of rooms if available ---
-                          // Adapt this section based on relevant Apartment info
-                          Column(
-                            children: [
-                              if (_apartmentData!.noOfBedrooms > 0) ...[
-                                CircleAvatar(
-                                  backgroundColor: Colors.grey[200],
-                                  radius: 20,
-                                  child: Text(
-                                      _apartmentData!.noOfBedrooms.toString(),
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                          color: Color(0xFF6B5B95))),
-                                ),
-                                SizedBox(height: 5),
-                                Text('Rooms',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 10)),
-                              ]
-                              // Add other relevant info like floor area if available
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(color: Colors.grey[300]),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // --- Display Apartment Rating ---
-                          Row(
-                            children: [
-                              ...List.generate(5, (index) {
-                                double rating = _apartmentData!.rating;
-                                if (index < rating.floor()) {
-                                  return const Icon(Icons.star,
-                                      color: Color(0xFF6B5B95), size: 20);
-                                }
-                                if (index < rating.ceil() &&
-                                    rating % 1 >= 0.5) {
-                                  return const Icon(Icons.star_half,
-                                      color: Color(0xFF6B5B95), size: 20);
-                                }
-                                return const Icon(Icons.star_border,
-                                    color: Color(0xFF6B5B95), size: 20);
-                              }),
-                              SizedBox(width: 5),
-                              Text(_apartmentData!.rating.toStringAsFixed(1),
-                                  style: TextStyle(
-                                      color: Color(0xFF6B5B95), fontSize: 14)),
-                            ],
-                          ),
-                          ElevatedButton(
-                            onPressed: () => _showModal(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              side: BorderSide(color: Color(0xFF6B5B95)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            child: Text(
-                              'Reviews',
-                              style: TextStyle(color: Color(0xFF6B5B95)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(color: Colors.grey[300]),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        // --- Display Apartment Details using _detailRow ---
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_apartmentData!.noOfBedrooms > 0)
-                            _detailRow('Rooms:',
-                                '🛏️ ${_apartmentData!.noOfBedrooms}'),
-                          if (_apartmentData!.noOfBathrooms > 0)
-                            _detailRow('Bathrooms:',
-                                '🚿 ${_apartmentData!.noOfBathrooms}'), // Assuming numberOfBathrooms exists
-                          if (_apartmentData!.capacity > 0)
-                            _detailRow('Max. Capacity:',
-                                '👥 ${_apartmentData!.capacity} persons'), // Display Capacity
-                          _detailRow(
-                              'Bills Included:',
-                              _apartmentData!.billsIncluded.isNotEmpty
-                                  ? _apartmentData!.billsIncluded.join(', ')
-                                  : 'Not specified'),
-                          _detailRow(
-                              'Curfew:',
-                              _apartmentData!.curfew != null &&
-                                      _apartmentData!.curfew!.isNotEmpty
-                                  ? '🕙 ${_apartmentData!.curfew}'
-                                  : 'None'),
-                          if (_apartmentData!.otherDetails.isNotEmpty)
-                            _detailRow(
-                                'Other Details:',
-                                _apartmentData!
-                                    .otherDetails), // Display Other Details
-                          // Add other relevant apartment details (e.g., floor area, amenities)
-                        ],
-                      ),
-                    ),
-                    Divider(color: Colors.grey[300]),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Use fetched data
-                              Text(
-                                '₱${_apartmentData!.price.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 22, // Adjusted font size
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF6B5B95),
-                                ),
-                              ),
-                              Text('/ month',
-                                  style: TextStyle(color: Colors.grey[700])),
-                            ],
-                          ),
-                          // Use fetched data
-                          Text(
-                              (_apartmentData!.contract) > 0
-                                  ? '${_apartmentData!.contract}-year contract'
-                                  : 'No contract',
-                              style: TextStyle(color: Colors.grey[700])),
-                          // --- Add Call Button ---
-                          IconButton(
-                            icon: Icon(Icons.phone, color: Color(0xFF6B5B95)),
-                            tooltip: 'Call ${_apartmentData!.contactPerson}',
-                            onPressed: () async {
-                              final Uri phoneLaunchUri = Uri(
-                                scheme: 'tel',
-                                path: _apartmentData!.contactNumber,
-                              );
-                              try {
-                                if (await canLaunchUrl(phoneLaunchUri)) {
-                                  await launchUrl(phoneLaunchUri);
-                                } else {
-                                  _logger.w('Could not launch $phoneLaunchUri');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Could not initiate phone call.')),
-                                  );
-                                }
-                              } catch (e) {
-                                _logger.e('Error launching phone call',
-                                    error: e);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(
-                                          'Error initiating phone call: $e')),
-                                );
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    // --- End Example Card Content ---
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- Helper Widgets (Keep or adapt as needed) ---
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(color: Colors.grey[700], fontSize: 14),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(color: Color(0xFF6B5B95), fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Update Modal to show Apartment Reviews (Placeholder) ---
-  // Fetching actual reviews requires a separate Firestore query (likely on a 'reviews' subcollection)
-  void _showModal(BuildContext context) {
+  void _showReviewsModal(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          // Use fetched apartment name
-          title: Text('Reviews for ${_apartmentData?.name ?? "Apartment"}',
-              style: TextStyle(color: Color(0xFF6B5B95))),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                _review(
-                    '★★★★★',
-                    'Nice location, reasonable price. Close to public transportation and markets.',
-                    '- Placeholder Reviewer 1'),
-                _review('★★★☆☆', 'Decent apartment. Clean and well-maintained.',
-                    '- Placeholder Reviewer 2'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-          ],
+        return ReviewsModal(
+          reviews: _reviews, 
+          apartmentName: _apartmentData?.name ?? 'Apartment'
         );
       },
     );
   }
 
-  // --- Review widget (structure is fine, content is placeholder) ---
-  Widget _review(String rating, String text, String author) {
+  Widget _buildStarRating(double rating) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    double halfStar = rating - fullStars;
+
+    for (int i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.add(Icon(Icons.star, color: Colors.grey[400], size: 24)); 
+      } else if (i == fullStars && halfStar >= 0.5) {
+        stars.add(Icon(Icons.star_half, color: Colors.grey[400], size: 24)); 
+      } else {
+        stars.add(Icon(Icons.star_border, color: Colors.grey[400], size: 24)); 
+      }
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: stars);
+  }
+
+  Widget _buildDetailRow(String label, Widget content) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center, 
         children: [
-          Text(rating, style: TextStyle(color: Color(0xFF6B5B95))),
-          Text(text),
-          Text(author, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+          Container(
+            width: 110,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[600], 
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center( 
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center, 
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: content),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // --- Handle Loading State ---
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Loading...'),
+          centerTitle: true,
+          backgroundColor: const Color(0xFF6750A4),
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    // --- Handle Error State ---
+    if (_error != null || _apartmentData == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Error'),
+          centerTitle: true,
+          backgroundColor: const Color(0xFF6750A4),
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(_error ?? 'Apartment data could not be loaded.',
+              textAlign: TextAlign.center),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Apartment Details'), 
+        centerTitle: true,
+        backgroundColor: const Color(0xFF6750A4), 
+        foregroundColor: Colors.white, 
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Apartment image
+            Container(
+              width: double.infinity,
+              height: 200,
+              child: Image.network(
+                _apartmentData!.imageDownloadUrl != null &&
+                      _apartmentData!.imageDownloadUrl!.isNotEmpty
+                  ? _apartmentData!.imageDownloadUrl!
+                  : 'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: Icon(Icons.broken_image, color: Colors.grey[600], size: 50),
+                ),
+              ),
+            ),
+
+            Container(
+              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 12), 
+              color: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _apartmentData!.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF6750A4), 
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    _apartmentData!.address,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.person,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _apartmentData!.contactPerson,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column( 
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 50, 
+                            height: 50, 
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF6750A4), 
+                                width: 2.0, 
+                              ),
+                            ),
+                            child: Center( 
+                              child: Text(
+                                (_apartmentData!.capacity - _apartmentData!.currentOccupancy).toString(), 
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                  color: Color(0xFF6750A4), 
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5), 
+                          const Text('Remaining\nCapacity',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, color: Colors.black54)), 
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Ratings section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'RATINGS',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          _buildStarRating(_apartmentData!.rating),
+                          const SizedBox(width: 8),
+                          Text(
+                            _apartmentData!.rating.toString(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.black, 
+                            ),
+                          ),
+                        ],
+                      ),
+                      OutlinedButton(
+                        onPressed: () => _showReviewsModal(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF6750A4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: const Text(
+                          'Reviews',
+                          style: TextStyle(color: Color(0xFF6750A4)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Details section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'DETAILS',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  _buildDetailRow(
+                    'Max Capacity:', 
+                    Row( 
+                      children: [
+                        const Icon(Icons.people, color: Color(0xFF6750A4), size: 25), 
+                        const SizedBox(width: 10),
+                        Text(
+                          '${_apartmentData!.capacity} persons',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bills Included
+                  _buildDetailRow(
+                    'Bills Included:', 
+                    Row( 
+                      crossAxisAlignment: CrossAxisAlignment.center, 
+                      children: [
+                        // Water 
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.water_drop,
+                                color: _isWaterIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                size: 25),
+                            const SizedBox(height: 4),
+                            Text('Water',
+                                style: TextStyle(fontSize: 12,
+                                color: _isWaterIncluded ? Colors.black : Colors.grey[600])), 
+                          ],
+                        ),
+                        const SizedBox(width: 12), 
+
+                        // Electricity 
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bolt,
+                                color: _isElectricityIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                size: 25),
+                            const SizedBox(height: 4),
+                            Text('Electric',
+                                style: TextStyle(fontSize: 12,
+                                color: _isElectricityIncluded ? Colors.black : Colors.grey[600])), 
+                          ],
+                        ),
+                        const SizedBox(width: 12), 
+
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.wifi,
+                                color: _isWifiIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                size: 25),
+                            const SizedBox(height: 4),
+                            Text('Internet',
+                                style: TextStyle(fontSize: 12,
+                                color: _isWifiIncluded ? Colors.black : Colors.grey[600])), 
+                          ],
+                        ),
+                        const SizedBox(width: 12), 
+
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.local_fire_department,
+                                color: _isLpgIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                size: 25),
+                            const SizedBox(height: 4),
+                            Text('LPG',
+                                style: TextStyle(fontSize: 12,
+                                color: _isLpgIncluded ? Colors.black : Colors.grey[600])), 
+                          ],
+                        ),
+
+                        if (_apartmentData!.billsIncluded.isEmpty)
+                          Text('None', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                  // Curfew
+                  _buildDetailRow(
+                    'Curfew:', 
+                    Row( 
+                      children: [
+                        const Icon(Icons.lock_clock, color: Color(0xFF6750A4), size: 25), 
+                        const SizedBox(width: 8),
+                        Text(
+                          _apartmentData!.curfew != null && _apartmentData!.curfew!.isNotEmpty
+                              ? _apartmentData!.curfew!
+                              : 'No curfew',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bedrooms
+                  _buildDetailRow(
+                    'Bedrooms:', 
+                    Row( 
+                      children: [
+                        const Icon(Icons.bed, color: Color(0xFF6750A4), size: 25), 
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_apartmentData!.noOfBedrooms} bedrooms',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bathrooms
+                  _buildDetailRow(
+                    'Bathrooms:', 
+                    Row( 
+                      children: [
+                        const Icon(Icons.bathroom_outlined, color: Color(0xFF6750A4), size: 25), 
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_apartmentData!.noOfBathrooms} bathrooms',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Price section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center, 
+                children: [
+                  Column( 
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row( 
+                        crossAxisAlignment: CrossAxisAlignment.baseline, 
+                        textBaseline: TextBaseline.alphabetic, 
+                        children: [
+                          const Text(
+                            '₱',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black, 
+                            ),
+                          ),
+                          Text(
+                            _apartmentData!.price.toStringAsFixed(2),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black, 
+                            ),
+                          ),
+                          const SizedBox(width: 4), 
+                          Text(
+                            '/ month',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54, 
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4), 
+                      Text(
+                        _apartmentData!.contract > 0 
+                            ? '${_apartmentData!.contract}-year contract'
+                            : 'No contract',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Call button - using phone functionality from first file
+                  GestureDetector(
+                    onTap: () async {
+                      final Uri phoneLaunchUri = Uri(
+                        scheme: 'tel',
+                        path: _apartmentData!.contactNumber,
+                      );
+                      try {
+                        if (await canLaunchUrl(phoneLaunchUri)) {
+                          await launchUrl(phoneLaunchUri);
+                        } else {
+                          _logger.w('Could not launch $phoneLaunchUri');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not initiate phone call.')),
+                          );
+                        }
+                      } catch (e) {
+                        _logger.e('Error launching phone call', error: e);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error initiating phone call: $e')),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEADDFF), 
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const Icon(
+                        Icons.phone,
+                        color: Color(0xFF6750A4), 
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12), 
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ReviewsModal extends StatelessWidget {
+  final List<Map<String, String>> reviews;
+  final String apartmentName;
+
+  const ReviewsModal({super.key, required this.reviews, required this.apartmentName});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Reviews for $apartmentName',
+          style: const TextStyle(color: Color(0xFF6750A4))),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: reviews.map((review) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    review['stars']!,
+                    style: const TextStyle(color: Colors.amber, fontSize: 18), 
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    review['text']!,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      review['author']!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ),
+                  if (review != reviews.last)
+                    Divider(color: Colors.grey[300]),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }
