@@ -299,45 +299,59 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   // Widget to build the initial Log In / Sign Up buttons
   Widget _buildInitialButtons(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     return Column(
       key: const ValueKey('initialButtons'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: () => _toggleLoginUI(true), // Show login form
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.deepPurple[700],
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-                side: BorderSide(color: Colors.deepPurple[700]!),
+        // Adjust the width of the "Log In" button to be 60% of screen width and centered
+        Center(
+          // Center the button horizontally
+          child: SizedBox(
+            width: screenWidth * 0.5, // 50% of the screen width
+            height: 50, // Maintain consistent height
+            child: ElevatedButton(
+              onPressed: () => _toggleLoginUI(true), // Show login form
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple[700],
+                padding: const EdgeInsets.symmetric(
+                    vertical: 14), // Adjust padding if needed due to fixed size
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  side: BorderSide(color: Colors.deepPurple[700]!),
+                ),
+                elevation: 0,
+                // Ensure the button text fits, or consider minimumSize if text is dynamic
+                // minimumSize: Size(double.infinity, 50), // This would make it fill the SizedBox
               ),
-              elevation: 0,
+              child: const Text('Log In',
+                  style: TextStyle(fontSize: 18, fontFamily: 'Inter')),
             ),
-            child: const Text('Log In',
-                style: TextStyle(fontSize: 18, fontFamily: 'Inter')),
           ),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: () => _showContinueAsDialog(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple[700],
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+        // Adjust the width of the "Sign Up" button to be 60% of screen width and centered
+        Center(
+          // Center the button horizontally
+          child: SizedBox(
+            width: screenWidth * 0.5, // 50% of the screen width
+            height: 50, // Maintain consistent height
+            child: ElevatedButton(
+              onPressed: () => _showContinueAsDialog(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple[700],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                elevation: 0,
               ),
-              elevation: 0,
+              child: const Text('Sign Up',
+                  style: TextStyle(
+                      fontSize: 18, color: Colors.white, fontFamily: 'Inter')),
             ),
-            child: const Text('Sign Up',
-                style: TextStyle(
-                    fontSize: 18, color: Colors.white, fontFamily: 'Inter')),
           ),
         ),
       ],
@@ -346,6 +360,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   // Widget to build the login form
   Widget _buildLoginForm(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     return Form(
       key: _formKey,
       child: Column(
@@ -403,37 +418,52 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             validator: _validatePassword,
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _performLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple[700],
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+          Center(
+            // Center the Login button
+            child: SizedBox(
+              width: screenWidth * 0.5, // 50% of screen width
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _performLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple[700],
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25)),
+                ),
+                child: const Text('Log In',
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontFamily: 'Inter')),
               ),
-              child: const Text('Login',
-                  style: TextStyle(
-                      fontSize: 18, color: Colors.white, fontFamily: 'Inter')),
             ),
           ),
           const SizedBox(height: 12),
-          TextButton(
-            onPressed: () {
-              _toggleLoginUI(false); // Hide login form
-              // Clear fields and reset state when going back
-              _formKey.currentState?.reset();
-              _emailController.clear();
-              _passwordController.clear();
-              setState(() {
-                _isPasswordVisible = false;
-              });
-              _emailFocusNode.unfocus();
-              _passwordFocusNode.unfocus();
-            },
-            child: Text('Back',
-                style: TextStyle(
-                    color: Colors.deepPurple[700], fontFamily: 'Inter')),
+          Center(
+            // Center the Back button
+            child: SizedBox(
+              width: screenWidth * 0.5, // 50% of screen width
+              height: 50, // Give it a consistent height
+              child: TextButton(
+                onPressed: () {
+                  _toggleLoginUI(false); // Hide login form
+                  // Clear fields and reset state when going back
+                  _formKey.currentState?.reset();
+                  _emailController.clear();
+                  _passwordController.clear();
+                  setState(() {
+                    _isPasswordVisible = false;
+                  });
+                  _emailFocusNode.unfocus();
+                  _passwordFocusNode.unfocus();
+                },
+                child: Text('Back',
+                    style: TextStyle(
+                        color: Colors.deepPurple[700],
+                        fontSize: 16,
+                        fontFamily: 'Inter')),
+              ),
+            ),
           ),
         ],
       ),
@@ -469,7 +499,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         ),
         const SizedBox(
             height:
-                32), // This creates space between these texts and the animated Stack below
+                20), // Slightly reduced to lift the buttons/form block a bit
       ],
     );
   }
@@ -560,16 +590,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             AnimatedSize(
                               // Wrap the Stack with AnimatedSize
                               duration: _animationController.duration ??
-                                  const Duration(
-                                      milliseconds:
-                                          500), // Use updated controller's duration
-                              curve: Curves
-                                  .easeInOutCubic, // Match your animation curve
+                                  const Duration(milliseconds: 500),
+                              curve: Curves.easeInOutCubic,
                               alignment: Alignment
-                                  .center, // How the child is aligned during size animation
+                                  .bottomCenter, // Change to bottomCenter
                               child: Stack(
                                 alignment: Alignment
-                                    .center, // Center alignment for Stack's children
+                                    .bottomCenter, // Change to bottomCenter
                                 children: <Widget>[
                                   // Initial Buttons: Animate out
                                   AnimatedBuilder(
@@ -620,16 +647,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 ],
                               ),
                             ),
-                            // Animated Spacing
+                            // This SizedBox's height will now animate.
+                            // It will be larger when initial buttons are shown (lifting them more)
+                            // and smaller when the login form is shown (positioning it lower).
                             AnimatedBuilder(
-                                animation: _curvedAnimation,
-                                builder: (context, child) {
-                                  final double height =
-                                      Tween<double>(begin: 24.0, end: 10.0)
-                                          .evaluate(_curvedAnimation);
-                                  return SizedBox(height: height);
-                                }),
-                            // Terms of Service text
+                              animation: _curvedAnimation,
+                              builder: (context, child) {
+                                final double height = Tween<double>(
+                                  begin: constraints.maxHeight *
+                                      0.10, // Larger height for initial buttons
+                                  end: constraints.maxHeight *
+                                      0.03, // Smaller height for login form (adjust as needed)
+                                ).evaluate(_curvedAnimation);
+                                return SizedBox(height: height);
+                              },
+                            ),
                             AnimatedBuilder(
                               animation:
                                   _curvedAnimation, // Animate with the same curve
@@ -651,7 +683,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 ),
                               ),
                             ),
-                            // Add padding at the bottom to account for the keyboard when it's visible
                             if (isKeyboardVisible)
                               SizedBox(
                                   height:
