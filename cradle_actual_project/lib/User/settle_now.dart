@@ -1,15 +1,141 @@
 import 'package:flutter/material.dart';
 import 'signup_renter.dart';
 import 'signup_owner.dart';
-import 'log_in.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for login logic
+import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences
+import 'landing_page.dart'; // Added for navigation after login
 
 // Removed the main() function and CradleApp class as they are now in main.dart
 
-// Renamed the file to welcome_screen.dart might be clearer, but keeping settle_now.dart for now.
+// Helper function to create a slide-left page route
+Route _createSlideLeftRoute(Widget page) {
+  return PageRouteBuilder(
+    transitionDuration: const Duration(milliseconds: 400), // Explicit duration
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(1.0, 0.0); // Start from the right
+      const end = Offset.zero; // End at the center
+      const curve = Curves.easeInOutCubic; // Match in-page animation curve
 
-class WelcomeScreen extends StatelessWidget {
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+      var offsetAnimation = animation.drive(tween);
+
+      return SlideTransition(
+        position: offsetAnimation,
+        child: child,
+      );
+    },
+  );
+}
+
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
+  // --- Animation Controller ---
+  late AnimationController _animationController;
+  late Animation<double> _curvedAnimation;
+
+  // --- Login Form State (from log_in.dart) ---
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+
+  Color _emailLabelColor = Colors.grey;
+  Color _passwordLabelColor = Colors.grey;
+  bool _isPasswordVisible = false;
+  // --- End Login Form State ---
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500), // Increased duration
+    );
+    _curvedAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOutCubic, // A smoother curve
+    );
+
+    _emailFocusNode.addListener(_updateEmailLabelColor);
+    _passwordFocusNode.addListener(_updatePasswordLabelColor);
+    _isPasswordVisible = false;
+    _loadLastEmail(); // Load email when the widget initializes
+  }
+
+  void _updateEmailLabelColor() {
+    if (mounted) {
+      setState(() {
+        _emailLabelColor =
+            _emailFocusNode.hasFocus ? Colors.deepPurple : Colors.grey;
+      });
+    }
+  }
+
+  void _updatePasswordLabelColor() {
+    if (mounted) {
+      setState(() {
+        _passwordLabelColor =
+            _passwordFocusNode.hasFocus ? Colors.deepPurple : Colors.grey;
+      });
+    }
+  }
+
+  // --- SharedPreferences Logic for Email ---
+  Future<void> _loadLastEmail() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? lastEmail = prefs.getString('last_login_email');
+    if (lastEmail != null) {
+      _emailController.text = lastEmail;
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocusNode.removeListener(_updateEmailLabelColor);
+    _passwordFocusNode.removeListener(_updatePasswordLabelColor);
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email is required';
+    }
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+      return 'Invalid email address';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    // You can add more password validation if needed (e.g., length)
+    // if (value.length < 8) {
+    //   return 'Password must be at least 8 characters';
+    // }
+    return null;
+  }
+
+  void _toggleLoginUI(bool show) {
+    show ? _animationController.forward() : _animationController.reverse();
+  }
+
+  // Method to show the "Continue as Renter/Owner" dialog for Sign Up
   void _showContinueAsDialog(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     showModalBottomSheet(
@@ -74,12 +200,8 @@ class WelcomeScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close the bottom sheet
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const SignupRenterScreen()));
-                        print('Continue as Renter');
+                        Navigator.push(context,
+                            _createSlideLeftRoute(const SignupRenterScreen()));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -105,12 +227,8 @@ class WelcomeScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close the bottom sheet
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const SignupOwnerScreen()));
-                        print('Continue as Owner');
+                        Navigator.push(context,
+                            _createSlideLeftRoute(const SignupOwnerScreen()));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -136,6 +254,226 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
+  // --- Login Logic (from log_in.dart) ---
+  Future<void> _performLogin() async {
+    if (_formKey.currentState!.validate()) {
+      String email = _emailController.text.trim();
+      String password = _passwordController.text.trim();
+
+      try {
+        // Optionally: show a loading indicator
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: email, password: password);
+
+        // Save email on successful login
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('last_login_email', email);
+
+        if (userCredential.user != null && mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LandingPage()),
+            (Route<dynamic> route) => false,
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
+        String errorMessage = 'Login failed. Please check your credentials.';
+        if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+          errorMessage = 'Invalid email or password.';
+        } else if (e.code == 'wrong-password') {
+          errorMessage = 'Incorrect password.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'The email address is badly formatted.';
+        }
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage)));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('An unexpected error occurred.')));
+      } finally {
+        // Optionally: hide loading indicator
+      }
+    }
+  }
+
+  // Widget to build the initial Log In / Sign Up buttons
+  Widget _buildInitialButtons(BuildContext context) {
+    return Column(
+      key: const ValueKey('initialButtons'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SizedBox(
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () => _toggleLoginUI(true), // Show login form
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.deepPurple[700],
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+                side: BorderSide(color: Colors.deepPurple[700]!),
+              ),
+              elevation: 0,
+            ),
+            child: const Text('Log In',
+                style: TextStyle(fontSize: 18, fontFamily: 'Inter')),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () => _showContinueAsDialog(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple[700],
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              elevation: 0,
+            ),
+            child: const Text('Sign Up',
+                style: TextStyle(
+                    fontSize: 18, color: Colors.white, fontFamily: 'Inter')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Widget to build the login form
+  Widget _buildLoginForm(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        key: const ValueKey('loginForm'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          TextFormField(
+            controller: _emailController,
+            focusNode: _emailFocusNode,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: 'Email',
+              labelStyle: TextStyle(color: _emailLabelColor),
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              hintText: 'Enter your email',
+              hintStyle: const TextStyle(color: Colors.grey),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.95),
+            ),
+            validator: _validateEmail,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _passwordController,
+            focusNode: _passwordFocusNode,
+            obscureText: !_isPasswordVisible,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              labelStyle: TextStyle(color: _passwordLabelColor),
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              hintText: 'Enter your password',
+              hintStyle: const TextStyle(color: Colors.grey),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.95),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  color: _passwordFocusNode.hasFocus
+                      ? Colors.deepPurple
+                      : Colors.grey,
+                ),
+                onPressed: () =>
+                    setState(() => _isPasswordVisible = !_isPasswordVisible),
+              ),
+            ),
+            validator: _validatePassword,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _performLogin,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple[700],
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Login',
+                  style: TextStyle(
+                      fontSize: 18, color: Colors.white, fontFamily: 'Inter')),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () {
+              _toggleLoginUI(false); // Hide login form
+              // Clear fields and reset state when going back
+              _formKey.currentState?.reset();
+              _emailController.clear();
+              _passwordController.clear();
+              setState(() {
+                _isPasswordVisible = false;
+              });
+              _emailFocusNode.unfocus();
+              _passwordFocusNode.unfocus();
+            },
+            child: Text('Back',
+                style: TextStyle(
+                    color: Colors.deepPurple[700], fontFamily: 'Inter')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget to build the "Settle Now" and description texts
+  // These texts will remain static above the animated buttons/form.
+  Widget _buildWelcomeTexts(BuildContext context) {
+    return Column(
+      key: const ValueKey('welcomeTexts'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Settle Now',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple[700],
+            fontFamily: 'Inter',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Start finding a place to settle inside GCH',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+            fontFamily: 'Inter',
+          ),
+        ),
+        const SizedBox(
+            height:
+                32), // This creates space between these texts and the animated Stack below
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -143,6 +481,7 @@ class WelcomeScreen extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Prevent scaffold from resizing
       backgroundColor: Colors.white,
       body: Stack(
         fit: StackFit.expand,
@@ -181,109 +520,149 @@ class WelcomeScreen extends StatelessWidget {
             top: screenHeight * 0.15,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                Image.asset(
-                  'assets/CRADLE LOGO 1.1.png',
-                  height: 150,
-                ),
-                const SizedBox(height: 250),
-                Text(
-                  'Settle Now',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple[700],
-                    fontFamily: 'Inter',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Start finding a place to settle inside GCH',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontFamily: 'Inter',
-                  ),
-                ),
-              ],
+            child: Image.asset(
+              // Logo remains positioned
+              'assets/CRADLE LOGO 1.1.png',
+              height: 150,
             ),
           ),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    height: 50,
-                    width: screenWidth * 0.5,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        print('Login pressed');
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LoginScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.deepPurple[700],
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          side: BorderSide(color: Colors.deepPurple[700]!),
+            child: LayoutBuilder(
+              // Use LayoutBuilder to get constraints
+              builder: (context, constraints) {
+                final isKeyboardVisible =
+                    MediaQuery.of(context).viewInsets.bottom > 0;
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // Ensure Column tries to fill height, accounting for keyboard if it were resizing
+                      // but with resizeToAvoidBottomInset: false, maxHeight is full screen.
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      // Allows Column's MainAxisAlignment.end to work
+                      child: Padding(
+                        // Padding is now inside the scrollable, constrained area
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment:
+                              MainAxisAlignment.end, // Pushes content to bottom
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            // Add the static welcome texts here, above the animated Stack
+                            Visibility(
+                              visible: !isKeyboardVisible,
+                              maintainState: false,
+                              maintainAnimation: false,
+                              maintainSize: false,
+                              child: _buildWelcomeTexts(context),
+                            ),
+                            AnimatedSize(
+                              // Wrap the Stack with AnimatedSize
+                              duration: _animationController.duration ??
+                                  const Duration(
+                                      milliseconds:
+                                          500), // Use updated controller's duration
+                              curve: Curves
+                                  .easeInOutCubic, // Match your animation curve
+                              alignment: Alignment
+                                  .center, // How the child is aligned during size animation
+                              child: Stack(
+                                alignment: Alignment
+                                    .center, // Center alignment for Stack's children
+                                children: <Widget>[
+                                  // Initial Buttons: Animate out
+                                  AnimatedBuilder(
+                                    animation: _curvedAnimation,
+                                    child: _buildInitialButtons(context),
+                                    builder: (context, childWidget) {
+                                      return Offstage(
+                                        offstage: _animationController.status ==
+                                            AnimationStatus.completed,
+                                        child: FadeTransition(
+                                          opacity: Tween<double>(
+                                                  begin: 1.0, end: 0.0)
+                                              .animate(_curvedAnimation),
+                                          child: SlideTransition(
+                                            position: Tween<Offset>(
+                                              begin: Offset.zero,
+                                              end: const Offset(0.0,
+                                                  0.15), // Slide down by 15% of height
+                                            ).animate(_curvedAnimation),
+                                            child: childWidget,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  // Login Form: Animate in
+                                  AnimatedBuilder(
+                                    animation: _curvedAnimation,
+                                    child: _buildLoginForm(context),
+                                    builder: (context, childWidget) {
+                                      return Offstage(
+                                        offstage: _animationController.status ==
+                                            AnimationStatus.dismissed,
+                                        child: FadeTransition(
+                                          opacity: _curvedAnimation,
+                                          child: SlideTransition(
+                                            position: Tween<Offset>(
+                                              begin: const Offset(0.0,
+                                                  0.15), // Slide up from 15% below
+                                              end: Offset.zero,
+                                            ).animate(_curvedAnimation),
+                                            child: childWidget,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Animated Spacing
+                            AnimatedBuilder(
+                                animation: _curvedAnimation,
+                                builder: (context, child) {
+                                  final double height =
+                                      Tween<double>(begin: 24.0, end: 10.0)
+                                          .evaluate(_curvedAnimation);
+                                  return SizedBox(height: height);
+                                }),
+                            // Terms of Service text
+                            AnimatedBuilder(
+                              animation:
+                                  _curvedAnimation, // Animate with the same curve
+                              builder: (context, child) {
+                                // Use FadeTransition for smoother opacity change
+                                return FadeTransition(
+                                  opacity: Tween<double>(begin: 1.0, end: 0.7)
+                                      .animate(_curvedAnimation),
+                                  child: child,
+                                );
+                              },
+                              child: Text(
+                                'By signing up or logging in, I accept the Cradle\'s Terms of Services and Privacy Policy',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            ),
+                            // Add padding at the bottom to account for the keyboard when it's visible
+                            if (isKeyboardVisible)
+                              SizedBox(
+                                  height:
+                                      MediaQuery.of(context).viewInsets.bottom),
+                          ],
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Log In',
-                        style: TextStyle(fontSize: 18, fontFamily: 'Inter'),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 50,
-                    width: screenWidth * 0.5,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _showContinueAsDialog(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple[700],
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Sign Up',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontFamily: 'Inter'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'By signing up or logging in, I accept the Cradle\'s Terms of Services and Privacy Policy',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

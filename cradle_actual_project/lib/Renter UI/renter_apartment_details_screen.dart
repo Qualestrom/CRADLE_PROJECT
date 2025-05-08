@@ -29,7 +29,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
   bool _isElectricityIncluded = false;
   bool _isWifiIncluded = false;
   bool _isLpgIncluded = false;
-  
+
   // Placeholder data for reviews - will be replaced with actual data if available
   final List<Map<String, String>> _reviews = [
     {
@@ -46,7 +46,8 @@ class _ApartmentListingState extends State<ApartmentListing> {
     },
     {
       'stars': '★★★★★',
-      'text': 'Very accommodating landlord. The place is well-maintained and secure.',
+      'text':
+          'Very accommodating landlord. The place is well-maintained and secure.',
       'author': '- Lisa Reyes',
     },
   ];
@@ -77,17 +78,20 @@ class _ApartmentListingState extends State<ApartmentListing> {
           final data = docSnapshot.data();
           if (data is Map<String, dynamic>) {
             _apartmentData = Apartment.fromJson(docSnapshot.id, data);
-            
+
             // Set utility inclusions based on billsIncluded array
             if (_apartmentData != null) {
-              _isWaterIncluded = _apartmentData!.billsIncluded.contains('Water');
-              _isElectricityIncluded = _apartmentData!.billsIncluded.contains('Electricity');
-              _isWifiIncluded = _apartmentData!.billsIncluded.contains('WiFi') || 
-                              _apartmentData!.billsIncluded.contains('Internet');
-              _isLpgIncluded = _apartmentData!.billsIncluded.contains('LPG') || 
-                             _apartmentData!.billsIncluded.contains('Gas');
+              _isWaterIncluded =
+                  _apartmentData!.billsIncluded.contains('Water');
+              _isElectricityIncluded =
+                  _apartmentData!.billsIncluded.contains('Electricity');
+              _isWifiIncluded =
+                  _apartmentData!.billsIncluded.contains('WiFi') ||
+                      _apartmentData!.billsIncluded.contains('Internet');
+              _isLpgIncluded = _apartmentData!.billsIncluded.contains('LPG') ||
+                  _apartmentData!.billsIncluded.contains('Gas');
             }
-            
+
             setState(() {
               _isLoading = false;
             });
@@ -122,9 +126,8 @@ class _ApartmentListingState extends State<ApartmentListing> {
       context: context,
       builder: (BuildContext context) {
         return ReviewsModal(
-          reviews: _reviews, 
-          apartmentName: _apartmentData?.name ?? 'Apartment'
-        );
+            reviews: _reviews,
+            apartmentName: _apartmentData?.name ?? 'Apartment');
       },
     );
   }
@@ -136,11 +139,11 @@ class _ApartmentListingState extends State<ApartmentListing> {
 
     for (int i = 0; i < 5; i++) {
       if (i < fullStars) {
-        stars.add(Icon(Icons.star, color: Colors.grey[400], size: 24)); 
+        stars.add(Icon(Icons.star, color: Colors.grey[400], size: 24));
       } else if (i == fullStars && halfStar >= 0.5) {
-        stars.add(Icon(Icons.star_half, color: Colors.grey[400], size: 24)); 
+        stars.add(Icon(Icons.star_half, color: Colors.grey[400], size: 24));
       } else {
-        stars.add(Icon(Icons.star_border, color: Colors.grey[400], size: 24)); 
+        stars.add(Icon(Icons.star_border, color: Colors.grey[400], size: 24));
       }
     }
     return Row(mainAxisSize: MainAxisSize.min, children: stars);
@@ -150,16 +153,16 @@ class _ApartmentListingState extends State<ApartmentListing> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center, 
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 110,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.grey[600], 
+              color: const Color(0xFF6750A4),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Center( 
+            child: Center(
               child: Text(
                 label,
                 style: const TextStyle(
@@ -167,7 +170,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                textAlign: TextAlign.center, 
+                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -192,7 +195,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     // --- Handle Error State ---
     if (_error != null || _apartmentData == null) {
       return Scaffold(
@@ -206,7 +209,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(_error ?? 'Apartment data could not be loaded.',
-              textAlign: TextAlign.center),
+                textAlign: TextAlign.center),
           ),
         ),
       );
@@ -215,10 +218,10 @@ class _ApartmentListingState extends State<ApartmentListing> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Apartment Details'), 
+        title: const Text('Apartment Details'),
         centerTitle: true,
-        backgroundColor: const Color(0xFF6750A4), 
-        foregroundColor: Colors.white, 
+        backgroundColor: const Color(0xFF6750A4),
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -230,20 +233,21 @@ class _ApartmentListingState extends State<ApartmentListing> {
               height: 200,
               child: Image.network(
                 _apartmentData!.imageDownloadUrl != null &&
-                      _apartmentData!.imageDownloadUrl!.isNotEmpty
-                  ? _apartmentData!.imageDownloadUrl!
-                  : 'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0',
+                        _apartmentData!.imageDownloadUrl!.isNotEmpty
+                    ? _apartmentData!.imageDownloadUrl!
+                    : 'https://via.placeholder.com/400x250?text=No+Image',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   height: 200,
                   color: Colors.grey[300],
-                  child: Icon(Icons.broken_image, color: Colors.grey[600], size: 50),
+                  child: const Center(child: Text('Could not load image')),
                 ),
               ),
             ),
 
             Container(
-              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 12), 
+              padding: const EdgeInsets.only(
+                  top: 16, left: 16, right: 16, bottom: 12),
               color: Colors.white,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +265,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF6750A4), 
+                                color: Color(0xFF6750A4),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -301,35 +305,36 @@ class _ApartmentListingState extends State<ApartmentListing> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Column( 
+                      Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
-                            width: 50, 
-                            height: 50, 
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF6750A4), 
-                                width: 2.0, 
+                                color: const Color(0xFF6750A4),
+                                width: 2.0,
                               ),
                             ),
-                            child: Center( 
+                            child: Center(
                               child: Text(
-                                (_apartmentData!.capacity - _apartmentData!.currentOccupancy).toString(), 
+                                (_apartmentData!.capacity).toString(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20,
-                                  color: Color(0xFF6750A4), 
+                                  color: Color(0xFF6750A4),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 5), 
-                          const Text('Remaining\nCapacity',
+                          const SizedBox(height: 5),
+                          const Text('Total\nCapacity',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 10, color: Colors.black54)), 
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.black54)),
                         ],
                       ),
                     ],
@@ -366,7 +371,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.normal,
-                              color: Colors.black, 
+                              color: Colors.black,
                             ),
                           ),
                         ],
@@ -378,7 +383,8 @@ class _ApartmentListingState extends State<ApartmentListing> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                         ),
                         child: const Text(
                           'Reviews',
@@ -407,12 +413,13 @@ class _ApartmentListingState extends State<ApartmentListing> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   _buildDetailRow(
-                    'Max Capacity:', 
-                    Row( 
+                    'Max Capacity:',
+                    Row(
                       children: [
-                        const Icon(Icons.people, color: Color(0xFF6750A4), size: 25), 
+                        const Icon(Icons.people,
+                            color: Color(0xFF6750A4), size: 25),
                         const SizedBox(width: 10),
                         Text(
                           '${_apartmentData!.capacity} persons',
@@ -423,81 +430,105 @@ class _ApartmentListingState extends State<ApartmentListing> {
                   ),
                   // Bills Included
                   _buildDetailRow(
-                    'Bills Included:', 
-                    Row( 
-                      crossAxisAlignment: CrossAxisAlignment.center, 
+                    'Bills Included:',
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Water 
+                        // Water
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.water_drop,
-                                color: _isWaterIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                color: _isWaterIncluded
+                                    ? const Color(0xFF6750A4)
+                                    : Colors.grey[600],
                                 size: 25),
                             const SizedBox(height: 4),
                             Text('Water',
-                                style: TextStyle(fontSize: 12,
-                                color: _isWaterIncluded ? Colors.black : Colors.grey[600])), 
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: _isWaterIncluded
+                                        ? Colors.black
+                                        : Colors.grey[600])),
                           ],
                         ),
-                        const SizedBox(width: 12), 
+                        const SizedBox(width: 12),
 
-                        // Electricity 
+                        // Electricity
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.bolt,
-                                color: _isElectricityIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                color: _isElectricityIncluded
+                                    ? const Color(0xFF6750A4)
+                                    : Colors.grey[600],
                                 size: 25),
                             const SizedBox(height: 4),
                             Text('Electric',
-                                style: TextStyle(fontSize: 12,
-                                color: _isElectricityIncluded ? Colors.black : Colors.grey[600])), 
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: _isElectricityIncluded
+                                        ? Colors.black
+                                        : Colors.grey[600])),
                           ],
                         ),
-                        const SizedBox(width: 12), 
+                        const SizedBox(width: 12),
 
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.wifi,
-                                color: _isWifiIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                color: _isWifiIncluded
+                                    ? const Color(0xFF6750A4)
+                                    : Colors.grey[600],
                                 size: 25),
                             const SizedBox(height: 4),
                             Text('Internet',
-                                style: TextStyle(fontSize: 12,
-                                color: _isWifiIncluded ? Colors.black : Colors.grey[600])), 
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: _isWifiIncluded
+                                        ? Colors.black
+                                        : Colors.grey[600])),
                           ],
                         ),
-                        const SizedBox(width: 12), 
+                        const SizedBox(width: 12),
 
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.local_fire_department,
-                                color: _isLpgIncluded ? const Color(0xFF6750A4) : Colors.grey[600], 
+                                color: _isLpgIncluded
+                                    ? const Color(0xFF6750A4)
+                                    : Colors.grey[600],
                                 size: 25),
                             const SizedBox(height: 4),
                             Text('LPG',
-                                style: TextStyle(fontSize: 12,
-                                color: _isLpgIncluded ? Colors.black : Colors.grey[600])), 
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: _isLpgIncluded
+                                        ? Colors.black
+                                        : Colors.grey[600])),
                           ],
                         ),
 
                         if (_apartmentData!.billsIncluded.isEmpty)
-                          Text('None', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                          Text('None',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.grey[600])),
                       ],
                     ),
                   ),
                   // Curfew
                   _buildDetailRow(
-                    'Curfew:', 
-                    Row( 
+                    'Curfew:',
+                    Row(
                       children: [
-                        const Icon(Icons.lock_clock, color: Color(0xFF6750A4), size: 25), 
+                        const Icon(Icons.lock_clock,
+                            color: Color(0xFF6750A4), size: 25),
                         const SizedBox(width: 8),
                         Text(
-                          _apartmentData!.curfew != null && _apartmentData!.curfew!.isNotEmpty
+                          _apartmentData!.curfew != null &&
+                                  _apartmentData!.curfew!.isNotEmpty
                               ? _apartmentData!.curfew!
                               : 'No curfew',
                           style: const TextStyle(fontSize: 14),
@@ -507,10 +538,11 @@ class _ApartmentListingState extends State<ApartmentListing> {
                   ),
                   // Bedrooms
                   _buildDetailRow(
-                    'Bedrooms:', 
-                    Row( 
+                    'Bedrooms:',
+                    Row(
                       children: [
-                        const Icon(Icons.bed, color: Color(0xFF6750A4), size: 25), 
+                        const Icon(Icons.bed,
+                            color: Color(0xFF6750A4), size: 25),
                         const SizedBox(width: 8),
                         Text(
                           '${_apartmentData!.noOfBedrooms} bedrooms',
@@ -521,10 +553,11 @@ class _ApartmentListingState extends State<ApartmentListing> {
                   ),
                   // Bathrooms
                   _buildDetailRow(
-                    'Bathrooms:', 
-                    Row( 
+                    'Bathrooms:',
+                    Row(
                       children: [
-                        const Icon(Icons.bathroom_outlined, color: Color(0xFF6750A4), size: 25), 
+                        const Icon(Icons.bathroom_outlined,
+                            color: Color(0xFF6750A4), size: 25),
                         const SizedBox(width: 8),
                         Text(
                           '${_apartmentData!.noOfBathrooms} bathrooms',
@@ -543,21 +576,21 @@ class _ApartmentListingState extends State<ApartmentListing> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center, 
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Column( 
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row( 
-                        crossAxisAlignment: CrossAxisAlignment.baseline, 
-                        textBaseline: TextBaseline.alphabetic, 
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
                         children: [
                           const Text(
                             '₱',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black, 
+                              color: Colors.black,
                             ),
                           ),
                           Text(
@@ -565,22 +598,22 @@ class _ApartmentListingState extends State<ApartmentListing> {
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black, 
+                              color: Colors.black,
                             ),
                           ),
-                          const SizedBox(width: 4), 
+                          const SizedBox(width: 4),
                           Text(
                             '/ month',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.black54, 
+                              color: Colors.black54,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4), 
+                      const SizedBox(height: 4),
                       Text(
-                        _apartmentData!.contract > 0 
+                        _apartmentData!.contract > 0
                             ? '${_apartmentData!.contract}-year contract'
                             : 'No contract',
                         style: TextStyle(
@@ -590,7 +623,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
                       ),
                     ],
                   ),
-                  
+
                   // Call button - using phone functionality from first file
                   GestureDetector(
                     onTap: () async {
@@ -604,13 +637,16 @@ class _ApartmentListingState extends State<ApartmentListing> {
                         } else {
                           _logger.w('Could not launch $phoneLaunchUri');
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Could not initiate phone call.')),
+                            SnackBar(
+                                content:
+                                    Text('Could not initiate phone call.')),
                           );
                         }
                       } catch (e) {
                         _logger.e('Error launching phone call', error: e);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error initiating phone call: $e')),
+                          SnackBar(
+                              content: Text('Error initiating phone call: $e')),
                         );
                       }
                     },
@@ -618,12 +654,12 @@ class _ApartmentListingState extends State<ApartmentListing> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEADDFF), 
+                        color: const Color(0xFFEADDFF),
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: const Icon(
                         Icons.phone,
-                        color: Color(0xFF6750A4), 
+                        color: Color(0xFF6750A4),
                         size: 24,
                       ),
                     ),
@@ -631,7 +667,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
                 ],
               ),
             ),
-            const SizedBox(height: 12), 
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -643,7 +679,8 @@ class ReviewsModal extends StatelessWidget {
   final List<Map<String, String>> reviews;
   final String apartmentName;
 
-  const ReviewsModal({super.key, required this.reviews, required this.apartmentName});
+  const ReviewsModal(
+      {super.key, required this.reviews, required this.apartmentName});
 
   @override
   Widget build(BuildContext context) {
@@ -662,7 +699,7 @@ class ReviewsModal extends StatelessWidget {
                 children: [
                   Text(
                     review['stars']!,
-                    style: const TextStyle(color: Colors.amber, fontSize: 18), 
+                    style: const TextStyle(color: Colors.amber, fontSize: 18),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -677,8 +714,7 @@ class ReviewsModal extends StatelessWidget {
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ),
-                  if (review != reviews.last)
-                    Divider(color: Colors.grey[300]),
+                  if (review != reviews.last) Divider(color: Colors.grey[300]),
                 ],
               ),
             );

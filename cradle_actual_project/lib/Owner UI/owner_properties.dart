@@ -47,14 +47,14 @@ class PropertyCard extends StatelessWidget {
   final String description;
 
   const PropertyCard({
-    Key? key,
+    super.key,
     required this.propertyName,
     required this.propertyType,
     required this.imageUrl,
     required this.price,
     required this.contractDuration,
     required this.description,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +75,9 @@ class PropertyCard extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: Colors.purple[400],
                   child: Text(
-                    propertyName.isNotEmpty ? propertyName[0].toUpperCase() : '',
+                    propertyName.isNotEmpty
+                        ? propertyName[0].toUpperCase()
+                        : '',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -119,7 +121,8 @@ class PropertyCard extends StatelessWidget {
                 height: 200.0,
                 color: Colors.grey[300],
                 child: const Center(
-                  child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                  child: Icon(Icons.image_not_supported,
+                      size: 50, color: Colors.grey),
                 ),
               );
             },
@@ -162,7 +165,7 @@ class PropertyCard extends StatelessWidget {
 }
 
 class MyPropertyScreen extends StatefulWidget {
-  const MyPropertyScreen({Key? key}) : super(key: key);
+  const MyPropertyScreen({super.key});
 
   @override
   State<MyPropertyScreen> createState() => _MyPropertyScreenState();
@@ -259,10 +262,9 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                 const Text(
                   'My Property',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black87
-                  ),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.black87),
                 ),
                 IconButton(
                   icon: const Icon(Icons.add, color: Colors.black87),
@@ -283,7 +285,8 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                   logger.e("Listings StreamBuilder Error",
                       error: snapshot.error, stackTrace: snapshot.stackTrace);
                   return Center(
-                      child: Text('Error loading properties: ${snapshot.error}'));
+                      child:
+                          Text('Error loading properties: ${snapshot.error}'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -301,28 +304,36 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                   itemCount: documents.length,
                   itemBuilder: (context, index) {
                     // Get data from document
-                    final listing = mapFirestoreDocumentToForRent(documents[index]);
+                    final listing =
+                        mapFirestoreDocumentToForRent(documents[index]);
                     final String docId = documents[index].id;
-                    
+
                     // If the listing has image URL, use it; otherwise use a placeholder
-                    String imageUrl = listing.imageUrl.isNotEmpty 
-                        ? listing.imageUrl 
+                    String imageUrl = listing.imageFilename.isNotEmpty
+                        ? listing.imageFilename
                         : 'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0';
-                    
+
                     // Get property type string
-                    String propertyType = listing is Apartment ? 'Apartment' : 'Bedspace';
-                    
+                    String propertyType =
+                        listing is Apartment ? 'Apartment' : 'Bedspace';
+
                     // Return the property card
                     return GestureDetector(
-                      onTap: () => _navigateToAddEditScreen(isNew: false, docId: docId),
-                      onLongPress: () => _showDeleteConfirmationDialog(listing.name, docId),
+                      onTap: () =>
+                          _navigateToAddEditScreen(isNew: false, docId: docId),
+                      onLongPress: () =>
+                          _showDeleteConfirmationDialog(listing.name, docId),
                       child: PropertyCard(
-                        propertyName: listing.name.isNotEmpty ? listing.name : "Untitled Property",
+                        propertyName: listing.name.isNotEmpty
+                            ? listing.name
+                            : "Untitled Property",
                         propertyType: propertyType,
                         imageUrl: imageUrl,
                         price: '₱${listing.price.toStringAsFixed(0)} / Month',
-                        contractDuration: '${listing.contractDuration} month contract',
-                        description: listing.description.isNotEmpty ? listing.description : 'No description available.',
+                        contractDuration: '${listing.contract} month contract',
+                        description: listing.otherDetails.isNotEmpty
+                            ? listing.otherDetails
+                            : 'No description available.',
                       ),
                     );
                   },
@@ -346,7 +357,9 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
             UserAccountsDrawerHeader(
               accountName: Text(
                 (_fullName ?? (isLoggedIn ? "User" : "Guest")) +
-                    (_accountType != null ? " (${_accountType?.capitalizeFirstLetter()})" : ""),
+                    (_accountType != null
+                        ? " (${_accountType?.capitalizeFirstLetter()})"
+                        : ""),
               ),
               accountEmail: Text(currentUser?.email ?? "Not signed in"),
               decoration: BoxDecoration(
@@ -367,8 +380,8 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
               title: const Text("Bookmarks"),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Bookmarks (Not Implemented)')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Bookmarks (Not Implemented)')));
               },
             ),
             ListTile(
@@ -385,15 +398,16 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
               title: const Text("Settings"),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Settings (Not Implemented)')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Settings (Not Implemented)')));
               },
             ),
             const Divider(),
             if (isLoggedIn)
               ListTile(
                 leading: Icon(Icons.logout, color: Colors.red[700]),
-                title: Text('Log Out', style: TextStyle(color: Colors.red[700])),
+                title:
+                    Text('Log Out', style: TextStyle(color: Colors.red[700])),
                 onTap: () async {
                   Navigator.pop(context);
                   try {
@@ -417,8 +431,8 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                 title: const Text('Log In / Sign Up'),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Login/Signup (Not Implemented)')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Login/Signup (Not Implemented)')));
                 },
               ),
           ],

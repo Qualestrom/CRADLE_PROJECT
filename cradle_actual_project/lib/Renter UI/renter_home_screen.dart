@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart'; // Import for SystemChrome
@@ -19,6 +18,7 @@ import '../Test/bedspace.dart';
 import 'renter_bedspacer_screen.dart';
 import 'renter_apartment_details_screen.dart';
 import '../utils/string_extensions.dart';
+import '../User/settle_now.dart'; // Import the WelcomeScreen
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -472,6 +472,12 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                     logger.i("User logged out successfully.");
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                         content: Text('Successfully logged out.')));
+                    // Navigate to WelcomeScreen and remove all previous routes
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (context) => const WelcomeScreen()),
+                      (Route<dynamic> route) => false,
+                    );
                   } catch (e, s) {
                     logger.e("Error logging out", error: e, stackTrace: s);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -712,8 +718,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    ApartmentDetailsScreen(listingId: listing.uid),
+                builder: (context) => ApartmentListing(listingId: listing.uid),
               ),
             );
           }
