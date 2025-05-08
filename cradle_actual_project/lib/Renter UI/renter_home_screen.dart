@@ -19,6 +19,7 @@ import 'renter_bedspacer_screen.dart';
 import 'renter_apartment_details_screen.dart';
 import '../utils/string_extensions.dart';
 import '../User/settle_now.dart'; // Import the WelcomeScreen
+import "../Menus/bookmarks_screen.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +75,9 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
   // --- Connectivity State ---
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isOfflineDialogShowing = false;
+  // --- Bookmark State ---
+  Set<String> _bookmarkedListingIds = {};
+  StreamSubscription? _bookmarksSubscription;
   bool _isConnected = true; // Assume connected initially
 
   @override
@@ -90,10 +94,23 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
 
     _auth.authStateChanges().listen((user) {
       _loadUserInfo(); // Reload user info on auth state change
+      // Listen to bookmarks if user is logged in, otherwise clear
       if (mounted) {
+        if (user != null) {
+          _listenToBookmarks();
+        } else {
+          _bookmarksSubscription?.cancel();
+          setState(() {
+            _bookmarkedListingIds.clear();
+          });
+        }
         setState(() {}); // Update drawer on auth change
       }
     });
+    // Initial bookmark listen if user is already logged in
+    if (_auth.currentUser != null) {
+      _listenToBookmarks();
+    }
   }
 
   @override
@@ -185,6 +202,101 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
     });
   }
   // --- End Connectivity Methods ---
+
+  // --- Bookmark Methods ---
+  void _listenToBookmarks() {
+    _bookmarksSubscription?.cancel(); // Cancel previous subscription
+    final user = _auth.currentUser;
+    if (user != null && mounted) {
+      _bookmarksSubscription = _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('bookmarks')
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _bookmarkedListingIds = snapshot.docs.map((doc) => doc.id).toSet();
+          });
+        }
+      }, onError: (error) {
+        logger.e("Error listening to bookmarks", error: error);
+      });
+    } else if (mounted) {
+      setState(() {
+        _bookmarkedListingIds.clear();
+      });
+    }
+  }
+
+  Future<void> _toggleBookmark(
+      ForRent listing, bool isCurrentlyBookmarked) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to bookmark listings.')),
+      );
+      return;
+    }
+
+    final bookmarkRef = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('bookmarks')
+        .doc(listing.uid);
+
+    try {
+      if (isCurrentlyBookmarked) {
+        await bookmarkRef.delete();
+        _showBookmarkDialog(listing.name, false);
+      } else {
+        await bookmarkRef.set({
+          'listingName':
+              listing.name, // Store some basic info for the bookmarks screen
+          'listingType': listing is Apartment
+              ? 'apartment'
+              : (listing is Bedspace ? 'bedspace' : 'unknown'),
+          'timestamp': FieldValue.serverTimestamp(),
+          'imageDownloadUrl': listing.imageDownloadUrl ??
+              '', // Store image URL for quick access
+          'price': listing.price,
+        });
+        _showBookmarkDialog(listing.name, true);
+      }
+      // The listener _listenToBookmarks will handle the state update for _bookmarkedListingIds
+    } catch (e) {
+      logger.e("Error toggling bookmark for ${listing.uid}", error: e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating bookmarks: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _showBookmarkDialog(String listingName, bool added) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(added ? 'Added to Bookmarks' : 'Removed from Bookmarks'),
+          content: Text(
+            added
+                ? '"${listingName.capitalizeFirstLetter()}" has been added to your bookmarks.'
+                : '"${listingName.capitalizeFirstLetter()}" has been removed from your bookmarks.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // --- End Bookmark Methods ---
 
   Future<void> _loadUserInfo() async {
     if (!mounted) return;
@@ -439,10 +551,21 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
             ListTile(
               leading: const Icon(Icons.bookmark_border),
               title: const Text("Bookmarks"),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Bookmarks (Not Implemented)')));
+                // Ensure user is logged in before navigating
+                if (_auth.currentUser == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Please log in to view bookmarks.')),
+                  );
+                  return;
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const BookmarksScreen()),
+                );
               },
             ),
             ListTile(
@@ -754,14 +877,14 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
         preferredSize: const Size.fromHeight(70),
         child: Padding(
           padding: const EdgeInsets.only(
-              top: 32.0,
+              top: 48.0,
               bottom: 10.0,
               left: 16.0,
               right: 16.0), // Increased top padding
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(
-                  0xFFECE6F0), // FIXED: Using the color scheme from design
+              color: const Color.fromARGB(255, 250, 241,
+                  255), // FIXED: Using the color scheme from design
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -804,6 +927,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
 
   // Custom listing widget for ForRent object
   Widget buildListing(ForRent listing) {
+    final bool isBookmarked = _bookmarkedListingIds.contains(listing.uid);
     return Card(
       color:
           const Color(0xFFF7F2FA), // FIXED: Using the color scheme from design
@@ -912,9 +1036,29 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                     children: [
                       Text('₱${listing.price.toStringAsFixed(0)} / Month',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const Icon(Icons.bookmark_border,
-                          color: Color(
-                              0xFF878585)), // FIXED: Using the correct icon
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return ScaleTransition(
+                              scale: animation, child: child);
+                        },
+                        child: IconButton(
+                          key: ValueKey<bool>(
+                              isBookmarked), // Essential for AnimatedSwitcher
+                          icon: Icon(
+                            isBookmarked
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                            color: isBookmarked
+                                ? Theme.of(context).primaryColor
+                                : const Color(0xFF878585),
+                          ),
+                          onPressed: () {
+                            _toggleBookmark(listing, isBookmarked);
+                          },
+                        ),
+                      ),
                     ],
                   ),
                   // Contract display based on contract value

@@ -13,10 +13,7 @@ import 'package:logger/logger.dart'; // Import logger
 final _logger = Logger(); // Make it private to this file if not used elsewhere
 final _storage = FirebaseStorage.instance; // Firebase Storage instance
 
-// IMPORTANT: Define the correct path to your images in Firebase Storage.
-// If your images are in a folder named "listing_images", it would be "listing_images/".
-// If they are at the root, you can leave this as an empty string or handle it accordingly.
-const String _firebaseStorageListingsPath = ""; // <<< --- REPLACE THIS
+const String _firebaseStorageListingsPath = "";
 
 /// Processes a Firestore QuerySnapshot to create a list of ForRent objects
 /// (either Apartment or Bedspace).
@@ -78,43 +75,65 @@ Future<List<ForRent>> processFirestoreListings(QuerySnapshot snapshot) async {
   return listings;
 }
 
-// --- Optional: More functional approach using map ---
-/*
-Future<List<ForRent>> processFirestoreListingsFunctional(QuerySnapshot snapshot) async {
-  List<Future<ForRent?>> futureListings = snapshot.docs.map((doc) async {
-    try {
-        Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
-        if (data == null) {
-           _logger.w("Document ${doc.id} has null data in functional approach.");
-           return null; // Skip documents with null data
-        }
+class FirestoreMapper {
+  static Future<ForRent> mapDocumentToForRent(DocumentSnapshot doc) async {
+    Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
 
-        Map<String, dynamic> enrichedData = Map.from(data);
-        String? imageFilename = data['_imageFilename'] as String?;
-
-        if (imageFilename != null && imageFilename.isNotEmpty) {
-          try {
-            final String downloadUrl = await _storage.ref('$_firebaseStorageListingsPath$imageFilename').getDownloadURL();
-            enrichedData['imageDownloadUrl'] = downloadUrl;
-          } catch (e) {
-            _logger.e("Error getting download URL for $imageFilename (doc ID: ${doc.id}) in functional", error: e);
-            enrichedData['imageDownloadUrl'] = null;
-          }
-        } else {
-          enrichedData['imageDownloadUrl'] = null;
-        }
-
-        if (enrichedData.containsKey('noOfBedrooms')) {
-          return Apartment.fromJson(doc.id, enrichedData);
-        } else {
-          return Bedspace.fromJson(doc.id, enrichedData);
-        }
-    } catch (e) {
-      _logger.e("Error processing document ${doc.id} in functional approach", error: e);
-      return null;
+    if (data == null) {
+      _logger
+          .e("Document ${doc.id} has null data. Cannot map to ForRent object.");
+      // Consider throwing a more specific error or returning a default object
+      // depending on how you want to handle missing data in BookmarksScreen.
+      throw Exception("Document ${doc.id} data is null.");
     }
-  }).toList();
-  final results = await Future.wait(futureListings);
-  return results.whereType<ForRent>().toList();
+
+    Map<String, dynamic> enrichedData = Map.from(data);
+    String? imageFilename = data['imageFilename'] as String?;
+
+    // Ensure imageDownloadUrl is populated in enrichedData
+    // Check if imageDownloadUrl is already present and valid, otherwise fetch it
+    if (enrichedData['imageDownloadUrl'] == null ||
+        (enrichedData['imageDownloadUrl'] is String &&
+            (enrichedData['imageDownloadUrl'] as String).isEmpty)) {
+      if (imageFilename != null && imageFilename.isNotEmpty) {
+        try {
+          final String downloadUrl = await _storage
+              .ref(
+                  '$_firebaseStorageListingsPath$imageFilename') // Ensure _firebaseStorageListingsPath is correct (e.g., 'listings/')
+              .getDownloadURL();
+          enrichedData['imageDownloadUrl'] = downloadUrl;
+        } catch (e) {
+          _logger.e(
+              "Error getting download URL for $imageFilename (doc ID: ${doc.id}) in mapDocumentToForRent",
+              error: e);
+          enrichedData['imageDownloadUrl'] = null; // Set to null if fetch fails
+        }
+      } else {
+        enrichedData['imageDownloadUrl'] = null; // No filename, so no URL
+      }
+    }
+
+    try {
+      // Use the same logic as processFirestoreListings to differentiate types
+      if (enrichedData.containsKey('noOfBedrooms')) {
+        return Apartment.fromJson(doc.id, enrichedData);
+      } else {
+        // Assumes if not an Apartment (by lacking 'noOfBedrooms'), it's a Bedspace.
+        // This relies on 'noOfBedrooms' being exclusive to Apartments or Bedspace data not containing it.
+        // A more robust solution might be a 'type' field in your Firestore documents.
+        return Bedspace.fromJson(doc.id, enrichedData);
+      }
+    } catch (e, s) {
+      // Log detailed error for easier debugging
+      String typeAttempt =
+          enrichedData.containsKey('noOfBedrooms') ? 'Apartment' : 'Bedspace';
+      _logger.e(
+          "Error creating $typeAttempt object for document ${doc.id} in mapDocumentToForRent",
+          error: e,
+          stackTrace: s);
+      _logger.d("Data causing error for ${doc.id}: $enrichedData");
+      // Re-throw to allow BookmarksScreen to handle the error (e.g., skip the item or show a message)
+      throw Exception("Error mapping document ${doc.id} to $typeAttempt: $e");
+    }
+  }
 }
-*/
