@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
-// Import Firestore if you plan to fetch data here
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Import the Bedspace model
 import '../Test/bedspace.dart'; // This imports for_rent.dart implicitly
-import 'package:logger/logger.dart'; // Import logger
-import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
-import '../utils/string_extensions.dart'; // Import the new extension file
+import 'package:logger/logger.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../utils/string_extensions.dart';
 
 class BedspacerListing extends StatefulWidget {
-  final String listingId; // <-- 1. Declare the field to hold the ID
+  final String listingId;
 
   const BedspacerListing({
     super.key,
-    required this.listingId, // <-- 2. Add the required parameter to the constructor
+    required this.listingId,
   });
 
   @override
@@ -21,10 +19,10 @@ class BedspacerListing extends StatefulWidget {
 
 class _BedspacerListingState extends State<BedspacerListing> {
   // --- State Variables for Data Fetching ---
-  Bedspace? _bedspaceData; // Store fetched bedspace data
+  Bedspace? _bedspaceData;
   bool _isLoading = true;
   String? _error;
-  final Logger _logger = Logger(); // Initialize logger
+  final Logger _logger = Logger();
 
   @override
   void initState() {
@@ -79,17 +77,177 @@ class _BedspacerListingState extends State<BedspacerListing> {
     }
   }
 
+  // Build star rating widget
+  Widget _buildStarRating(double rating) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    double halfStar = rating - fullStars;
+
+    for (int i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.add(Icon(Icons.star, color: const Color(0xFF6750A4), size: 24)); 
+      } else if (i == fullStars && halfStar >= 0.5) {
+        stars.add(Icon(Icons.star_half, color: const Color(0xFF6750A4), size: 24)); 
+      } else {
+        stars.add(Icon(Icons.star_border, color: const Color(0xFF6750A4), size: 24)); 
+      }
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: stars);
+  }
+
+  // Build detail row widget
+  Widget _buildDetailRow(String label, Widget content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 110,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6750A4),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+
+  // Show reviews modal
+  void _showReviewsModal(BuildContext context) {
+    if (_bedspaceData == null) return;
+    
+    // For now, we'll use placeholder reviews
+    // In a real app, these could be fetched from Firestore
+    final List<Map<String, String>> reviews = [
+      {
+        'stars': '★★★★☆',
+        'text': 'Clean and affordable place. Good internet connection. Can get a bit crowded during peak hours.',
+        'author': '- Mark Tan',
+      },
+      {
+        'stars': '★★★★★',
+        'text': 'Friendly housemates and accommodating owner. The location is very convenient for commuting.',
+        'author': '- Sarah Lim',
+      },
+      {
+        'stars': '★★★☆☆',
+        'text': 'Basic amenities are provided. The curfew is a bit early but understandable for security.',
+        'author': '- David Lee',
+      },
+    ];
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Reviews for ${_bedspaceData!.name}',
+              style: const TextStyle(color: Color(0xFF6750A4))),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: reviews.map((review) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        review['stars']!,
+                        style: const TextStyle(color: Colors.amber, fontSize: 18),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        review['text']!,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Text(
+                          review['author']!,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ),
+                      if (review != reviews.last)
+                        Divider(color: Colors.grey[300]),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Helper function to determine which bills are included
+  Map<String, bool> _getBillsIncludedMap() {
+    Map<String, bool> billsMap = {
+      'Water': false,
+      'Electric': false,
+      'Internet': false,
+      'LPG': false
+    };
+    
+    if (_bedspaceData != null && _bedspaceData!.billsIncluded.isNotEmpty) {
+      for (String bill in _bedspaceData!.billsIncluded) {
+        if (bill.toLowerCase().contains('water')) billsMap['Water'] = true;
+        if (bill.toLowerCase().contains('electric')) billsMap['Electric'] = true;
+        if (bill.toLowerCase().contains('wifi') || bill.toLowerCase().contains('internet')) 
+          billsMap['Internet'] = true;
+        if (bill.toLowerCase().contains('lpg') || bill.toLowerCase().contains('gas')) 
+          billsMap['LPG'] = true;
+      }
+    }
+    
+    return billsMap;
+  }
+
   @override
   Widget build(BuildContext context) {
     // --- Handle Loading and Error States ---
     if (_isLoading) {
       return Scaffold(
-          appBar: AppBar(title: const Text("Loading...")),
+          appBar: AppBar(
+            title: const Text("Loading..."),
+            backgroundColor: const Color(0xFF6750A4),
+            foregroundColor: Colors.white,
+          ),
           body: const Center(child: CircularProgressIndicator()));
     }
     if (_error != null || _bedspaceData == null) {
       return Scaffold(
-          appBar: AppBar(title: const Text("Error")),
+          appBar: AppBar(
+            title: const Text("Error"),
+            backgroundColor: const Color(0xFF6750A4),
+            foregroundColor: Colors.white,
+          ),
           body: Center(
               child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -98,338 +256,464 @@ class _BedspacerListingState extends State<BedspacerListing> {
           )));
     }
 
+    // Get the bills included map
+    final billsMap = _getBillsIncludedMap();
+
     return Scaffold(
-      backgroundColor: Color(0xFFF5F5F5),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        // Use fetched name
         title: Text(_bedspaceData!.name),
         centerTitle: true,
-        backgroundColor: Color(0xFF6B5B95),
+        backgroundColor: const Color(0xFF6750A4),
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        // Added SingleChildScrollView for scrollability
-        child: Padding(
-          padding: EdgeInsets.all(16.0), // Adjusted padding for mobile
-          child: Column(
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 5,
-                child: Column(
-                  children: [
-                    Image.network(
-                      // Use fetched image URL, provide a fallback
-                      _bedspaceData!.imageDownloadUrl != null &&
-                              _bedspaceData!.imageDownloadUrl!.isNotEmpty
-                          ? _bedspaceData!.imageDownloadUrl!
-                          : 'https://via.placeholder.com/400x250?text=No+Image',
-                      height: MediaQuery.of(context).size.height *
-                          0.25, // Dynamically adjusted height
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      // Add error builder
-                      errorBuilder: (context, error, stackTrace) => Container(
-                          height: MediaQuery.of(context).size.height * 0.25,
-                          color: Colors.grey[300],
-                          child: Icon(Icons.broken_image,
-                              color: Colors.grey[600], size: 50)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                // Use fetched name
-                                _bedspaceData!.name,
-                                style: TextStyle(
-                                  fontSize: 22, // Adjusted font size for mobile
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF6B5B95),
-                                ),
-                              ),
-                              SizedBox(height: 5),
-                              // Use fetched address
-                              Text(_bedspaceData!.address,
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 14, // Adjusted font size
-                                  )),
-                              SizedBox(height: 5),
-                              // Use fetched contact person
-                              Text(_bedspaceData!.contactPerson,
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 14, // Adjusted font size
-                                  )),
-                              // Display Contact Number
-                              SizedBox(height: 3),
-                              Text(_bedspaceData!.contactNumber,
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 12,
-                                  )),
-                            ],
-                          ),
-                          // Display roommate count (total capacity/slots for the bedspace)
-                          Column(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.grey[200],
-                                radius: 20,
-                                child: Text(
-                                  // Use fetched roommateCount (total slots)
-                                  _bedspaceData!.roommateCount.toString(),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                    color: Color(0xFF6B5B95),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 5),
-                              // Changed label
-                              Text('Total\nBed Slots',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 10)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(color: Colors.grey[300]),
-                    Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Display Rating
-                          Row(
-                            children: [
-                              ...List.generate(5, (index) {
-                                double rating = _bedspaceData!.rating;
-                                if (index < rating.floor()) {
-                                  return const Icon(Icons.star,
-                                      color: Color(0xFF6B5B95), size: 20);
-                                }
-                                if (index < rating.ceil() &&
-                                    rating % 1 >= 0.5) {
-                                  return const Icon(Icons.star_half,
-                                      color: Color(0xFF6B5B95), size: 20);
-                                }
-                                return const Icon(Icons.star_border,
-                                    color: Color(0xFF6B5B95), size: 20);
-                              }),
-                              SizedBox(width: 5),
-                              Text(_bedspaceData!.rating.toStringAsFixed(1),
-                                  style: TextStyle(
-                                      color: Color(0xFF6B5B95), fontSize: 14)),
-                            ],
-                          ),
-                          ElevatedButton(
-                            onPressed: () => _showModal(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              side: BorderSide(color: Color(0xFF6B5B95)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            child: Text(
-                              'Reviews',
-                              style: TextStyle(color: Color(0xFF6B5B95)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(color: Colors.grey[300]),
-                    Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Column(
-                        // Display Bedspace Details
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Use fetched data
-                          _detailRow('Total Slots:',
-                              '👥 ${_bedspaceData!.roommateCount} persons'),
-                          _detailRow('Shared Bathrooms:',
-                              '🚿 ${_bedspaceData!.bathroomShareCount}'),
-                          // Use string interpolation for better readability
-                          _detailRow('Gender Preference:',
-                              '${_getGenderIcon(_bedspaceData!.gender)} ${_bedspaceData!.gender.name.capitalizeFirstLetter()}'),
-                          _detailRow(
-                              'Bills Included:',
-                              _bedspaceData!.billsIncluded.isNotEmpty
-                                  ? _bedspaceData!.billsIncluded.join(', ')
-                                  : 'Not specified'),
-                          _detailRow(
-                              'Curfew:',
-                              _bedspaceData!.curfew != null &&
-                                      _bedspaceData!.curfew!.isNotEmpty
-                                  ? '🕙 ${_bedspaceData!.curfew}'
-                                  : 'None'),
-                          if (_bedspaceData!.otherDetails.isNotEmpty)
-                            _detailRow(
-                                'Other Details:', _bedspaceData!.otherDetails),
-                        ],
-                      ),
-                    ),
-                    Divider(color: Colors.grey[300]),
-                    Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                // Use fetched price
-                                '₱${_bedspaceData!.price.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 22, // Adjusted font size for mobile
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF6B5B95),
-                                ),
-                              ),
-                              Text('/ month',
-                                  style: TextStyle(color: Colors.grey[700])),
-                            ],
-                          ),
-                          // Use fetched contract info
-                          Text(
-                              (_bedspaceData!.contract) > 0
-                                  ? '${_bedspaceData!.contract}-year contract'
-                                  : 'No contract',
-                              style: TextStyle(color: Colors.grey[700])),
-                          // --- Add Call Button ---
-                          IconButton(
-                            icon: Icon(Icons.phone, color: Color(0xFF6B5B95)),
-                            tooltip: 'Call ${_bedspaceData!.contactPerson}',
-                            onPressed: () async {
-                              final Uri phoneLaunchUri = Uri(
-                                scheme: 'tel',
-                                path: _bedspaceData!.contactNumber,
-                              );
-                              try {
-                                if (await canLaunchUrl(phoneLaunchUri)) {
-                                  await launchUrl(phoneLaunchUri);
-                                } else {
-                                  _logger.w('Could not launch $phoneLaunchUri');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Could not initiate phone call.')),
-                                  );
-                                }
-                              } catch (e) {
-                                _logger.e('Error launching phone call',
-                                    error: e);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(
-                                          'Error initiating phone call: $e')),
-                                );
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image container
+            Container(
+              width: double.infinity,
+              height: 200,
+              child: Image.network(
+                _bedspaceData!.imageDownloadUrl != null &&
+                        _bedspaceData!.imageDownloadUrl!.isNotEmpty
+                    ? _bedspaceData!.imageDownloadUrl!
+                    : 'https://via.placeholder.com/400x250?text=No+Image',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: const Center(child: Text('Could not load image')),
                 ),
               ),
-            ],
-          ),
+            ),
+
+            // Header section with name, location, owner, and capacity
+            Container(
+              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 12),
+              color: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _bedspaceData!.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF6750A4),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    _bedspaceData!.address,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.person,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _bedspaceData!.contactPerson,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF6750A4),
+                                width: 2.0,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _bedspaceData!.roommateCount.toString(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                  color: Color(0xFF6750A4),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text('Total\nCapacity',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, color: Colors.black54)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Ratings section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'RATINGS',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          _buildStarRating(_bedspaceData!.rating),
+                          const SizedBox(width: 8),
+                          Text(
+                            _bedspaceData!.rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      OutlinedButton(
+                        onPressed: () => _showReviewsModal(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF6750A4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: const Text(
+                          'Reviews',
+                          style: TextStyle(color: Color(0xFF6750A4)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Details section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'DETAILS',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Max Capacity 
+                  _buildDetailRow(
+                    'Max. Capacity',
+                    Row(
+                      children: [
+                        const Icon(Icons.people, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_bedspaceData!.roommateCount} persons',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Bills Included
+                  _buildDetailRow(
+                    'Bills Included:',
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Water icon and text
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.water_drop,
+                                 color: billsMap['Water']! ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 22),
+                             const SizedBox(height: 4),
+                             Text('Water',
+                                 style: TextStyle(fontSize: 12,
+                                 color: billsMap['Water']! ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Electricity 
+                        Column(
+                           mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.bolt,
+                                 color: billsMap['Electric']! ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 22),
+                             const SizedBox(height: 4),
+                             Text('Electric',
+                                 style: TextStyle(fontSize: 12,
+                                 color: billsMap['Electric']! ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Internet 
+                        Column(
+                           mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.wifi,
+                                 color: billsMap['Internet']! ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 22),
+                             const SizedBox(height: 4),
+                             Text('Internet',
+                                 style: TextStyle(fontSize: 12,
+                                 color: billsMap['Internet']! ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+
+                        // LPG 
+                        Column(
+                           mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.local_fire_department,
+                                 color: billsMap['LPG']! ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 22),
+                             const SizedBox(height: 4),
+                             Text('LPG',
+                                 style: TextStyle(fontSize: 12,
+                                 color: billsMap['LPG']! ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+
+                        if (_bedspaceData!.billsIncluded.isEmpty)
+                          Text('None', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                  
+                  // Curfew
+                  _buildDetailRow(
+                    'Curfew:',
+                    Row(
+                      children: [
+                        const Icon(Icons.lock_clock, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          _bedspaceData!.curfew != null && _bedspaceData!.curfew!.isNotEmpty
+                            ? _bedspaceData!.curfew!
+                            : 'None',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Gender
+                  _buildDetailRow(
+                    'Gender:',
+                    Row(
+                      children: [
+                        const Icon(Icons.wc, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getGenderText(_bedspaceData!.gender),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Bathrooms
+                  _buildDetailRow(
+                    'Bathrooms:',
+                    Row(
+                      children: [
+                        const Icon(Icons.bathroom_outlined, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_bedspaceData!.bathroomShareCount} shared bathrooms',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Other details if available
+                  if (_bedspaceData!.otherDetails.isNotEmpty)
+                    _buildDetailRow(
+                      'Other Details:',
+                      Text(
+                        _bedspaceData!.otherDetails,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Price section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          const Text(
+                            '₱',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            _bedspaceData!.price.toStringAsFixed(2),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                           const SizedBox(width: 4),
+                           const Text(
+                            '/ month',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                       Text(
+                        _bedspaceData!.contract > 0 
+                          ? '${_bedspaceData!.contract}-year contract'
+                          : 'No contract',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () async {
+                      final Uri phoneLaunchUri = Uri(
+                        scheme: 'tel',
+                        path: _bedspaceData!.contactNumber,
+                      );
+                      try {
+                        if (await canLaunchUrl(phoneLaunchUri)) {
+                          await launchUrl(phoneLaunchUri);
+                        } else {
+                          _logger.w('Could not launch $phoneLaunchUri');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Could not initiate phone call.')),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        _logger.e('Error launching phone call', error: e);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error initiating phone call: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEADDFF),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const Icon(
+                        Icons.phone,
+                        color: Color(0xFF6750A4),
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+             const SizedBox(height: 12),
+          ],
         ),
       ),
     );
   }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          SizedBox(
-            // Adjusted width for potentially longer labels
-            width: 140,
-            child: Text(
-              label,
-              style: TextStyle(color: Colors.grey[700], fontSize: 14),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(color: Color(0xFF6B5B95), fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          // Use fetched name
-          title: Text('Reviews for ${_bedspaceData?.name ?? "Bedspace"}',
-              style: TextStyle(color: Color(0xFF6B5B95))),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                _review(
-                    '★★★★★',
-                    'Nice location, reasonable price. Close to public transportation and markets.',
-                    '- Placeholder Reviewer 1'),
-                _review(
-                    '★★★☆☆',
-                    'Decent bedspace. Bathrooms are clean but can get crowded during peak hours.',
-                    '- Placeholder Reviewer 2'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _review(String rating, String text, String author) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(rating, style: TextStyle(color: Color(0xFF6B5B95))),
-          Text(text),
-          Text(author, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  // Helper to get gender icon
-  String _getGenderIcon(GenderPreference gender) {
+  
+  // Helper to convert gender preference to display text
+  String _getGenderText(GenderPreference gender) {
     switch (gender) {
       case GenderPreference.maleOnly:
-        return '♂️';
+        return '♂️ Male Only';
       case GenderPreference.femaleOnly:
-        return '♀️';
+        return '♀️ Female Only';
       case GenderPreference.any:
-        return '⚥';
+        return '⚥ Any Gender';
     }
   }
 }
