@@ -1,20 +1,42 @@
 import 'package:flutter/material.dart';
-// Imports needed for the shared menu logic
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+// Imports needed for the backend functionality
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
-import 'dart:async'; // For async operations
-// Import the string extension if needed by menu items (e.g., for capitalizing type)
-import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core
+import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 
 // Import models and helpers needed for listing display and navigation
 import '../Test/for_rent.dart';
 import '../Test/apartment.dart';
 import '../Test/bedspace.dart';
-import '../Test/listing_add_edit_fragment.dart'; // Screen for adding/editing
-
+import '../Test/listing_add_edit_fragment.dart';
 import '../utils/string_extensions.dart';
+
+void main() async {
+  // Make main async
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are ready
+  await Firebase.initializeApp(); // Initialize Firebase and wait for it
+  runApp(const MyApp()); // Then run the app
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'My Property App',
+      debugShowCheckedModeBanner: false, // Removed the debug banner
+      home: const MyPropertyScreen(),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+    );
+  }
+}
 
 class PropertyCard extends StatelessWidget {
   final String propertyName;
@@ -39,7 +61,9 @@ class PropertyCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.all(16.0),
       elevation: 4.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -48,21 +72,37 @@ class PropertyCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      propertyName,
-                      style: const TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
+                CircleAvatar(
+                  backgroundColor: Colors.purple[400],
+                  child: Text(
+                    propertyName.isNotEmpty ? propertyName[0].toUpperCase() : '',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12.0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        propertyName,
+                        style: const TextStyle(
+                          fontSize: 18.0,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(
-                      propertyType,
-                      style: TextStyle(fontSize: 14.0, color: Colors.grey[600]),
-                    ),
-                  ],
+                      Text(
+                        propertyType,
+                        style: TextStyle(
+                          fontSize: 14.0,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 // Options icon (three dots)
                 const Icon(Icons.more_vert),
@@ -79,11 +119,7 @@ class PropertyCard extends StatelessWidget {
                 height: 200.0,
                 color: Colors.grey[300],
                 child: const Center(
-                  child: Icon(
-                    Icons.image_not_supported,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
+                  child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
                 ),
               );
             },
@@ -104,10 +140,18 @@ class PropertyCard extends StatelessWidget {
                 const SizedBox(height: 4.0),
                 Text(
                   contractDuration,
-                  style: TextStyle(fontSize: 14.0, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: 14.0,
+                    color: Colors.grey[700],
+                  ),
                 ),
                 const SizedBox(height: 8.0),
-                Text(description, style: const TextStyle(fontSize: 14.0)),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 14.0,
+                  ),
+                ),
               ],
             ),
           ),
@@ -117,9 +161,7 @@ class PropertyCard extends StatelessWidget {
   }
 }
 
-// Example usage in a Scaffold
 class MyPropertyScreen extends StatefulWidget {
-  // Changed to StatefulWidget
   const MyPropertyScreen({Key? key}) : super(key: key);
 
   @override
@@ -127,16 +169,13 @@ class MyPropertyScreen extends StatefulWidget {
 }
 
 class _MyPropertyScreenState extends State<MyPropertyScreen> {
-  // State class
-  // --- State for Menu (Copied from renter_home_screen.dart) ---
+  // --- State for Firebase Backend ---
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db =
-      FirebaseFirestore.instance; // Add Firestore instance
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
   final Logger logger = Logger();
   String? _accountType;
   String? _fullName;
-  final GlobalKey<ScaffoldState> _scaffoldKey =
-      GlobalKey<ScaffoldState>(); // Key for drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // --- State for Listings ---
   Stream<QuerySnapshot>? _listingsStream;
@@ -148,9 +187,11 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     _currentUser = _auth.currentUser; // Get current user
     _loadUserInfo();
     _auth.authStateChanges().listen((user) {
+      _currentUser = user; // Update current user reference
       _loadUserInfo(); // Reload user info on auth state change
+      _setupListingsStream(); // Reset listings stream on auth change
       if (mounted) {
-        setState(() {}); // Update drawer on auth change
+        setState(() {}); // Update UI on auth change
       }
     });
     _setupListingsStream(); // Setup the stream to fetch properties
@@ -167,54 +208,72 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     }
   }
 
-  // --- Method to setup Firestore stream (from my_properties_fragment.dart) ---
+  // --- Method to setup Firestore stream ---
   void _setupListingsStream() {
     if (_currentUser != null) {
       setState(() {
         _listingsStream = _db
             .collection('listings')
             .where('uid', isEqualTo: _currentUser!.uid)
-            // .orderBy('dateCreated', descending: true) // Optional: Add if you have this field
             .snapshots(); // Listen for real-time updates
       });
     } else {
-      // Handle case where user is not logged in (e.g., show login screen or message)
-      logger.i("User not logged in, cannot fetch properties.");
-      // Optionally clear the stream if user logs out
+      // Clear the stream if user logs out
       setState(() => _listingsStream = null);
     }
   }
-  // --- End State for Menu ---
+
+  void _navigateToAddEditScreen({bool isNew = true, String? docId}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ListingAddEditScreen(
+          isNew: isNew,
+          docId: docId, // Pass docId if editing
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey, // Assign key
-      appBar: AppBar(
-        backgroundColor: Colors.grey[200],
-        elevation: 0.0,
-        title: const Text('My Property', style: TextStyle(color: Colors.black)),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
-          onPressed: () {
-            // Use the key to open the drawer
-            _scaffoldKey.currentState?.openDrawer();
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.black),
-            tooltip: 'Add New Property',
-            onPressed: () {
-              // Navigate to the Add/Edit screen for a new listing
-              _navigateToAddEditScreen(isNew: true);
-            },
+      key: _scaffoldKey,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFECE6F0),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.menu, color: Colors.black87),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+                const Text(
+                  'My Property',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.black87
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add, color: Colors.black87),
+                  onPressed: () => _navigateToAddEditScreen(isNew: true),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
-      drawer: buildMenu(), // Use the shared menu builder method
-      // --- Replace hardcoded ListView with StreamBuilder ---
+      drawer: buildMenu(),
       body: _currentUser == null
           ? const Center(child: Text("Please log in to see your properties."))
           : StreamBuilder<QuerySnapshot>(
@@ -224,8 +283,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                   logger.e("Listings StreamBuilder Error",
                       error: snapshot.error, stackTrace: snapshot.stackTrace);
                   return Center(
-                      child:
-                          Text('Error loading properties: ${snapshot.error}'));
+                      child: Text('Error loading properties: ${snapshot.error}'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -239,11 +297,34 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                 final documents = snapshot.data!.docs;
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(8.0), // Add some padding
+                  padding: const EdgeInsets.all(8.0),
                   itemCount: documents.length,
                   itemBuilder: (context, index) {
-                    // Build list item from document snapshot
-                    return _buildListItem(context, documents[index]);
+                    // Get data from document
+                    final listing = mapFirestoreDocumentToForRent(documents[index]);
+                    final String docId = documents[index].id;
+                    
+                    // If the listing has image URL, use it; otherwise use a placeholder
+                    String imageUrl = listing.imageUrl.isNotEmpty 
+                        ? listing.imageUrl 
+                        : 'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0';
+                    
+                    // Get property type string
+                    String propertyType = listing is Apartment ? 'Apartment' : 'Bedspace';
+                    
+                    // Return the property card
+                    return GestureDetector(
+                      onTap: () => _navigateToAddEditScreen(isNew: false, docId: docId),
+                      onLongPress: () => _showDeleteConfirmationDialog(listing.name, docId),
+                      child: PropertyCard(
+                        propertyName: listing.name.isNotEmpty ? listing.name : "Untitled Property",
+                        propertyType: propertyType,
+                        imageUrl: imageUrl,
+                        price: '₱${listing.price.toStringAsFixed(0)} / Month',
+                        contractDuration: '${listing.contractDuration} month contract',
+                        description: listing.description.isNotEmpty ? listing.description : 'No description available.',
+                      ),
+                    );
                   },
                 );
               },
@@ -251,112 +332,78 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     );
   }
 
-  // --- Method to navigate to Add/Edit Screen (from my_properties_fragment.dart) ---
-  void _navigateToAddEditScreen({bool isNew = true, String? docId}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ListingAddEditScreen(
-          isNew: isNew,
-          docId: docId, // Pass docId if editing
-        ),
-      ),
-    );
-  }
-
-  // --- buildMenu Method (Copied & Adapted from renter_home_screen.dart) ---
+  // --- buildMenu Method ---
   Widget buildMenu() {
     final User? currentUser = _auth.currentUser;
     final bool isLoggedIn = currentUser != null;
 
     return Drawer(
       child: Container(
-        color: const Color(0xFFede9f3), // Match renter home screen color
+        color: const Color(0xFFede9f3), // Light purple background
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            // Use UserAccountsDrawerHeader for a standard look
             UserAccountsDrawerHeader(
               accountName: Text(
                 (_fullName ?? (isLoggedIn ? "User" : "Guest")) +
-                    (_accountType != null
-                        ? " (${_accountType?.capitalizeFirstLetter()})"
-                        : ""), // Capitalize type
+                    (_accountType != null ? " (${_accountType?.capitalizeFirstLetter()})" : ""),
               ),
               accountEmail: Text(currentUser?.email ?? "Not signed in"),
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor, // Use theme color
+                color: Theme.of(context).primaryColor,
               ),
-              // currentAccountPicture: CircleAvatar(
-              //   // Add user image if available
-              //   // backgroundImage: NetworkImage(currentUser?.photoURL ?? ''),
-              // ),
             ),
-            // --- Menu Items (Match renter_home_screen.dart structure) ---
             ListTile(
-              // Profile Tile
               leading: const Icon(Icons.person_outline),
               title: const Text("Profile"),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to Profile Screen
                 ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Profile (Not Implemented)')));
               },
             ),
             ListTile(
-              // Bookmarks Tile (If applicable for Owner)
               leading: const Icon(Icons.bookmark_border),
-              title: const Text("Bookmarks"), // Or maybe "Saved Searches"?
+              title: const Text("Bookmarks"),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to Bookmarks/Saved Screen
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Bookmarks (Not Implemented)')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Bookmarks (Not Implemented)')));
               },
             ),
             ListTile(
-              // My Properties Tile (Highlight if current screen)
               leading: const Icon(Icons.list_alt_outlined),
               title: const Text("My Properties"),
-              selected: true, // Highlight this item
-              selectedTileColor:
-                  Colors.grey.withOpacity(0.2), // Optional highlight color
+              selected: true,
+              selectedTileColor: Colors.grey.withOpacity(0.2),
               onTap: () {
-                Navigator.pop(context); // Just close drawer if already here
+                Navigator.pop(context);
               },
             ),
             ListTile(
-              // Settings Tile
               leading: const Icon(Icons.settings_outlined),
               title: const Text("Settings"),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to Settings Screen
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Settings (Not Implemented)')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Settings (Not Implemented)')));
               },
             ),
             const Divider(),
             if (isLoggedIn)
               ListTile(
-                // Log Out Tile
                 leading: Icon(Icons.logout, color: Colors.red[700]),
-                title:
-                    Text('Log Out', style: TextStyle(color: Colors.red[700])),
+                title: Text('Log Out', style: TextStyle(color: Colors.red[700])),
                 onTap: () async {
-                  Navigator.pop(context); // Close drawer first
+                  Navigator.pop(context);
                   try {
                     await _auth.signOut();
                     final prefs = await SharedPreferences.getInstance();
                     await Future.wait([
                       prefs.remove("accountType"),
                       prefs.remove("fullName"),
-                      // Remove other relevant user data from prefs
                     ]);
                     logger.i("User logged out successfully.");
-                    // No need to call setState here, auth listener handles UI update
-                    // TODO: Navigate to Login Screen after logout
                   } catch (e, s) {
                     logger.e("Error logging out", error: e, stackTrace: s);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -366,14 +413,12 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
               )
             else
               ListTile(
-                // Log In / Sign Up Tile
                 leading: const Icon(Icons.login),
                 title: const Text('Log In / Sign Up'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to your Login/Signup Screen
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Login/Signup (Not Implemented)')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Login/Signup (Not Implemented)')));
                 },
               ),
           ],
@@ -381,59 +426,16 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
       ),
     );
   }
-  // --- End buildMenu Method ---
 
-  // --- Method to build list item (adapted from my_properties_fragment.dart) ---
-  // You can customize this to use your PropertyCard or keep it as ListTile
-  Widget _buildListItem(BuildContext context, DocumentSnapshot document) {
-    final ForRent listing;
-    try {
-      // Use the mapping function (ensure it's accessible or defined here)
-      listing = mapFirestoreDocumentToForRent(document);
-    } catch (e) {
-      logger.e("Error mapping document ${document.id}", error: e);
-      return ListTile(
-        title: Text("Error loading listing"),
-        subtitle: Text(e.toString()),
-        leading: Icon(Icons.error, color: Colors.red),
-      );
-    }
-    final String docId = document.id; // Get the document ID
-
-    // Using ListTile for simplicity, similar to my_properties_fragment.dart
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      child: ListTile(
-        // leading: CircleAvatar(...), // Add image loading if needed
-        title:
-            Text(listing.name.isNotEmpty ? listing.name : "Untitled Listing"),
-        subtitle: Text(
-          '₱${listing.price.toStringAsFixed(0)}/month - ${listing is Apartment ? 'Apartment' : 'Bedspace'}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Icon(Icons.chevron_right),
-        onTap: () {
-          // Navigate to edit screen
-          _navigateToAddEditScreen(isNew: false, docId: docId);
-        },
-        onLongPress: () {
-          // Show delete confirmation
-          _showDeleteConfirmationDialog(listing.name, docId);
-        },
-      ),
-    );
-  }
-
-  // --- Delete Confirmation Dialog (from my_properties_fragment.dart) ---
+  // --- Delete Confirmation Dialog ---
   void _showDeleteConfirmationDialog(String listingName, String docId) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text("Delete listing?"),
+          title: const Text("Delete property?"),
           content: Text(
-              "Are you sure you want to delete ${listingName.isNotEmpty ? listingName : 'this listing'}?"),
+              "Are you sure you want to delete ${listingName.isNotEmpty ? listingName : 'this property'}?"),
           actions: <Widget>[
             TextButton(
               child: const Text("Cancel"),
@@ -452,7 +454,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     );
   }
 
-  // --- Delete Listing Function (from my_properties_fragment.dart) ---
+  // --- Delete Listing Function ---
   Future<void> _deleteListing(String docId) async {
     try {
       await _db.collection('listings').doc(docId).delete();
@@ -468,8 +470,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     }
   }
 
-  // --- Mapping Function (ensure this is accessible) ---
-  // You might move this to a separate file (like firestore_mapper.dart) and import it
+  // --- Mapping Function ---
   ForRent mapFirestoreDocumentToForRent(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>?;
     if (data == null) {
@@ -489,28 +490,5 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
       logger.e("Error parsing document ${doc.id}", error: e);
       rethrow;
     }
-  }
-}
-
-Future<void> main() async {
-  // Make main async
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are ready
-  await Firebase.initializeApp(); // Initialize Firebase and wait for it
-  runApp(const MyApp()); // Then run the app
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'My Property App',
-      home: const MyPropertyScreen(),
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-    );
   }
 }
