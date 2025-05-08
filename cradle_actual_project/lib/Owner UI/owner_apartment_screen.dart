@@ -1,39 +1,39 @@
 import 'package:flutter/material.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Apartment Details',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+void main() {
+  runApp(MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData.light().copyWith(
+      primaryColor: const Color(0xFF6750A4),
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF6750A4),
+        secondary: Color(0xFFEADDFF),
       ),
-      home: const ApartmentDetailsScreen(),
-    );
-  }
+    ),
+    home: const ApartmentListing(),
+  ));
 }
 
-class ApartmentDetailsScreen extends StatefulWidget {
-  const ApartmentDetailsScreen({super.key});
+
+class ApartmentListing extends StatefulWidget {
+  const ApartmentListing({super.key});
 
   @override
-  State<ApartmentDetailsScreen> createState() => _ApartmentDetailsScreenState();
+  _ApartmentListingState createState() => _ApartmentListingState();
 }
 
-class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
+class _ApartmentListingState extends State<ApartmentListing> {
   // State variables for apartment details
   String _apartmentName = 'ABC Apartment';
-  String _location = 'Building Y Room Z, City Area';
-  String _owner = 'Maria Santos';
-  int _availableUnits = 3;
-  final double _rating = 4.2;
-  int _roomCapacity = 6;
-  int _sharedBathrooms = 2;
-  double _monthlyRate = 1500.00;
-  final String _contractLength = '6-month contract';
+  String _location = 'Block X Lot X Universe 2 St.';
+  String _owner = 'Juan Dela Cruz';
+  int _remainingCapacity = 5;
+  double _rating = 4.5;
+  int _maxCapacity = 5;
+  int _bedrooms = 2;
+  int _bathrooms = 2;
+  double _monthlyRate = 2000.00;
+  String _contractLength = '1-year contract';
 
   // State variables for included bills
   bool _isWaterIncluded = true;
@@ -44,34 +44,37 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
   // Placeholder data for reviews
   final List<Map<String, String>> _reviews = [
     {
+      'stars': '★★★★★',
+      'text':
+          'Great location, clean and spacious rooms. The amenities are all working properly.',
+      'author': '- Maria Santos',
+    },
+    {
       'stars': '★★★★☆',
-      'text': 'Clean and affordable. Good location.',
-      'author': '- Resident A',
+      'text':
+          'Nice apartment, good value for money. The location is convenient but can be noisy at night.',
+      'author': '- John Garcia',
     },
     {
       'stars': '★★★★★',
-      'text': 'Friendly community and convenient location.',
-      'author': '- Resident B',
-    },
-    {
-      'stars': '★★★☆☆',
-      'text': 'A bit noisy at times, but manageable for the price.',
-      'author': '- Resident C',
+      'text': 'Very accommodating landlord. The place is well-maintained and secure.',
+      'author': '- Lisa Reyes',
     },
   ];
 
   // Function to show the Reviews modal
-  void _onReviewsPressed() {
+  void _showReviewsModal(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return ReviewsModal(reviews: _reviews);
+        return ReviewsModal(reviews: _reviews, apartmentName: _apartmentName);
       },
     );
   }
 
-  // Function to display a message when the Edit button is clicked
+  // Placeholder function for the Edit button
   void _onEditPressed() {
+    
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Edit apartment details here...'),
@@ -79,6 +82,7 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
       ),
     );
   }
+
 
   // Helper function to build star widgets based on rating
   Widget _buildStarRating(double rating) {
@@ -88,331 +92,460 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
 
     for (int i = 0; i < 5; i++) {
       if (i < fullStars) {
-        stars.add(const Icon(Icons.star, color: Colors.amber, size: 20));
+        stars.add(Icon(Icons.star, color: Colors.grey[400], size: 24));
       } else if (i == fullStars && halfStar >= 0.5) {
-        stars.add(const Icon(Icons.star_half, color: Colors.amber, size: 20));
+        stars.add(Icon(Icons.star_half, color: Colors.grey[400], size: 24));
       } else {
-        stars.add(const Icon(Icons.star_border, color: Colors.amber, size: 20));
+        stars.add(Icon(Icons.star_border, color: Colors.grey[400], size: 24));
       }
     }
-    return Row(children: stars);
+    return Row(mainAxisSize: MainAxisSize.min, children: stars);
+  }
+
+  // Helper function to build detail rows with a label and content
+  Widget _buildDetailRow(String label, Widget content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 110,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[600],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: content),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: const Text('Apartment Details'),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF6750A4),
+        foregroundColor: Colors.white,
       ),
-      extendBodyBehindAppBar: true,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Apartment Image
-            Image.network(
-              'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0',
+            // Apartment image
+            Container(
               width: double.infinity,
-              height: 250,
-              fit: BoxFit.cover,
+              height: 200,
+              child: Image.network(
+                'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0',
+                fit: BoxFit.cover,
+                 errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: const Center(child: Text('Could not load image')),
+                ),
+              ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+
+
+            Container(
+              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 12),
+              color: Colors.white,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Apartment Name and Available Units
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          _apartmentName,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _availableUnits.toString(),
+                              _apartmentName,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
+                                color: Color(0xFF6750A4),
                               ),
                             ),
-                            const Text(
-                              'Available\nUnits',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                              ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    _location,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.person,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _owner,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Location details
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          _location,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // Owner details
-                  Row(
-                    children: [
-                      Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                       Expanded(
-                        child: Text(
-                          _owner,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                           overflow: TextOverflow.ellipsis,
-                        ),
-                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-
-                  const SizedBox(height: 16),
-
-                  // Ratings Section with buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'RATINGS',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
+                      const SizedBox(width: 16),
+                      Column(
+                        // Column to stack remaining capacity text and circle
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _buildStarRating(_rating),
-                          const SizedBox(width: 4),
-                          Text(
-                            _rating.toString(),
-                            style: const TextStyle(fontSize: 16),
-                          ),
+                           Container(
+                             width: 50,
+                             height: 50,
+                             decoration: BoxDecoration(
+                               shape: BoxShape.circle,
+                               border: Border.all(
+                                 color: const Color(0xFF6750A4),
+                                 width: 2.0,
+                               ),
+                             ),
+                             child: Center(
+                               child: Text(
+                                 _remainingCapacity.toString(),
+                                 style: const TextStyle(
+                                   fontWeight: FontWeight.bold,
+                                   fontSize: 20,
+                                   color: Color(0xFF6750A4),
+                                 ),
+                               ),
+                             ),
+                           ),
+                           const SizedBox(height: 5),
+                           const Text('Remaining\nCapacity',
+                               textAlign: TextAlign.center,
+                               style: TextStyle(fontSize: 10, color: Colors.black54)),
                         ],
                       ),
-                      const Spacer(),
-                      // Reviews Button
-                      OutlinedButton(
-                        onPressed: _onReviewsPressed,
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text('Reviews'),
-                      ),
-                      const SizedBox(width: 8),
-                      // Edit Button
-                      OutlinedButton(
-                        onPressed: _onEditPressed,
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text('Edit'),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
 
-                  const SizedBox(height: 16),
-
-                  // Details Section
+            // Ratings section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
-                    'DETAILS',
+                    'RATINGS',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Room Capacity detail
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Room Capacity'),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.people_alt, size: 20, color: Colors.grey[700]),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('$_roomCapacity persons', style: const TextStyle(fontSize: 14))),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Available Units detail
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Available Units'),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.apartment, size: 20, color: Colors.grey[700]),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('$_availableUnits units', style: const TextStyle(fontSize: 14))),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Bills Included details
-                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Bills Included:'),
-                      ),
-                      const SizedBox(width: 16),
-                       Expanded(
-                        child: Row(
-                          children: [
-                            if (_isWaterIncluded) ...[
-                              const Icon(Icons.water_drop, size: 20, color: Colors.blue),
-                              const SizedBox(width: 4),
-                              const Text('Water', style: TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_isElectricityIncluded) ...[
-                              const Icon(Icons.electric_bolt, size: 20, color: Colors.orange),
-                              const SizedBox(width: 4),
-                              const Text('Electric', style: TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_isWifiIncluded) ...[
-                              const Icon(Icons.wifi, size: 20, color: Colors.blue),
-                              const SizedBox(width: 4),
-                              const Text('Internet', style: TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_isLpgIncluded) ...[
-                              const Icon(Icons.local_fire_department, size: 20, color: Colors.red),
-                              const SizedBox(width: 4),
-                              const Text('LPG', style: TextStyle(fontSize: 14)),
-                            ],
-                             if (!_isWaterIncluded && !_isElectricityIncluded && !_isWifiIncluded && !_isLpgIncluded)
-                               const Text('None', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Access Hours detail
-                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Access Hours:'),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.lock_clock, size: 20, color: Colors.grey[700]),
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text('24/7 access', style: TextStyle(fontSize: 14))),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Shared Bathrooms detail
-                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Shared Bathrooms:'),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.bathtub, size: 20, color: Colors.grey[700]),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('$_sharedBathrooms bathrooms', style: const TextStyle(fontSize: 14))),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                  const Divider(),
-
-                  const SizedBox(height: 16),
-
-                  // Price and Contract details
-                  Text(
-                    '₱${_monthlyRate.toStringAsFixed(2)} / month',
-                    style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _contractLength,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          // Star rating
+                          _buildStarRating(_rating),
+                          const SizedBox(width: 8),
+                          // Rating number
+                          Text(
+                            _rating.toString(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column( // Wrap buttons in a Column
+                        crossAxisAlignment: CrossAxisAlignment.end, // Align buttons to the right
+                        children: [
+                          SizedBox( // Wrap in SizedBox for fixed width
+                            width: 100, // Set fixed width
+                            child: OutlinedButton(
+                              onPressed: () => _showReviewsModal(context),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF6750A4)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                              child: const Text(
+                                'Reviews',
+                                style: TextStyle(color: Color(0xFF6750A4)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8), // Add spacing between buttons
+                          SizedBox( // Wrap in SizedBox for fixed width
+                            width: 100, // Set the same fixed width
+                            child: OutlinedButton(
+                              // Added Edit button
+                              onPressed: _onEditPressed, // Placeholder edit function
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF6750A4)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                              child: const Text(
+                                'Edit',
+                                style: TextStyle(color: Color(0xFF6750A4)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Details section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'DETAILS',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildDetailRow(
+                    'Max Capacity:',
+                    Row(
+                      children: [
+                        const Icon(Icons.people, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 10),
+                        Text(
+                          '$_maxCapacity persons',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bills Included
+                  _buildDetailRow(
+                    'Bills Included:',
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Water
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.water_drop,
+                                 color: _isWaterIncluded ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 25),
+                             const SizedBox(height: 4),
+                             Text('Water',
+                                 style: TextStyle(fontSize: 12,
+                                 color: _isWaterIncluded ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Electricity
+                        Column(
+                           mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.bolt,
+                                 color: _isElectricityIncluded ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 25),
+                             const SizedBox(height: 4),
+                             Text('Electric',
+                                 style: TextStyle(fontSize: 12,
+                                 color: _isElectricityIncluded ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Internet
+                        Column(
+                           mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.wifi,
+                                 color: _isWifiIncluded ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 25),
+                             const SizedBox(height: 4),
+                             Text('Internet',
+                                 style: TextStyle(fontSize: 12,
+                                 color: _isWifiIncluded ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+
+                        // LPG
+                        Column(
+                           mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.local_fire_department,
+                                 color: _isLpgIncluded ? const Color(0xFF6750A4) : Colors.grey[600],
+                                 size: 25),
+                             const SizedBox(height: 4),
+                             Text('LPG',
+                                 style: TextStyle(fontSize: 12,
+                                 color: _isLpgIncluded ? Colors.black : Colors.grey[600])),
+                          ],
+                        ),
+
+                          if (!_isWaterIncluded && !_isElectricityIncluded && !_isWifiIncluded && !_isLpgIncluded)
+                            Text('None', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                  // Curfew
+                  _buildDetailRow(
+                    'Curfew:',
+                    Row(
+                      children: [
+                        const Icon(Icons.lock_clock, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '11:59PM - 4:00AM',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bedrooms
+                   _buildDetailRow(
+                    'Bedrooms:',
+                    Row(
+                      children: [
+                        const Icon(Icons.bed, color: Color(0xFF6750A4), size: 25), // Purple icon
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_bedrooms bedrooms',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bathrooms
+                  _buildDetailRow(
+                    'Bathrooms:',
+                    Row(
+                      children: [
+                        const Icon(Icons.bathroom_outlined, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_bathrooms bathrooms',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Price section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          const Text(
+                            '₱',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            _monthlyRate.toStringAsFixed(2),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                           const SizedBox(width: 4),
+                           const Text(
+                            '/ month',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                        Text(
+                         _contractLength,
+                         style: TextStyle(
+                           fontSize: 14,
+                           color: Colors.black54,
+                         ),
+                       ),
+                    ],
+                  ),
+                  // Removed the call button container
+                ],
+              ),
+            ),
+             const SizedBox(height: 12),
           ],
         ),
       ),
@@ -420,22 +553,25 @@ class _ApartmentDetailsScreenState extends State<ApartmentDetailsScreen> {
   }
 }
 
+
 class ReviewsModal extends StatelessWidget {
   final List<Map<String, String>> reviews;
+  final String apartmentName;
 
-  const ReviewsModal({super.key, required this.reviews});
+  const ReviewsModal({super.key, required this.reviews, required this.apartmentName});
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Reviews'),
+      title: Text('Reviews for $apartmentName',
+          style: const TextStyle(color: Color(0xFF6750A4))),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: reviews.map<Widget>((review) {
+          children: reviews.map((review) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -456,7 +592,8 @@ class ReviewsModal extends StatelessWidget {
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ),
-                  const Divider(),
+                  if (review != reviews.last)
+                    Divider(color: Colors.grey[300]),
                 ],
               ),
             );
@@ -465,16 +602,12 @@ class ReviewsModal extends StatelessWidget {
       ),
       actions: <Widget>[
         TextButton(
-          child: const Text('Close'),
           onPressed: () {
             Navigator.of(context).pop();
           },
+          child: const Text('Close'),
         ),
       ],
     );
   }
-}
-
-void main() {
-  runApp(const MyApp());
 }
