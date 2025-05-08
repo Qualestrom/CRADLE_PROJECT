@@ -1,90 +1,74 @@
 import 'package:flutter/material.dart';
 
-// main application widget
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class BedspacerListing extends StatefulWidget {
+  const BedspacerListing({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Bedspacer Details',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: const BedspacerDetailsScreen(), 
-    );
-  }
+  _BedspacerListingState createState() => _BedspacerListingState();
 }
 
-
-class BedspacerDetailsScreen extends StatefulWidget {
-  const BedspacerDetailsScreen({super.key});
-
-  @override
-  State<BedspacerDetailsScreen> createState() => _BedspacerDetailsScreenState();
-}
-
-class _BedspacerDetailsScreenState extends State<BedspacerDetailsScreen> {
-
-  String _bedspacerName = 'ABC Bedspace';
-  String _location = 'Building Y Room Z, City Area';
-  String _owner = 'Maria Santos';
-  int _availableBedspaces = 3;
-  final double _rating = 4.2; 
-  int _roomCapacity = 6; 
-  int _sharedBathrooms = 2; 
-  double _monthlyRate = 1500.00; 
-  final String _contractLength = '6-month contract'; 
+class _BedspacerListingState extends State<BedspacerListing> {
+  // State variables for bedspacer details
+  String _bedspacerName = 'ABC Bedspacer';
+  String _location = 'Block X Lot X Universe 2 St.';
+  String _owner = 'Juan Dela Cruz';
+  int _remainingCapacity = 3;
+  double _rating = 3.5;
+  int _maxCapacity = 20;
+  // ignore: unused_field
+  final int _bathrooms = 2;
+  double _monthlyRate = 1500.00;
+  String _contractLength = '6-month contract';
+  String _gender = 'Mixed';
+  String _curfew = '11:59PM - 4:00AM';
 
   // State variables for included bills
   bool _isWaterIncluded = true;
   bool _isElectricityIncluded = true;
   bool _isWifiIncluded = true;
-  bool _isLpgIncluded = true;
+  bool _isLpgIncluded = false;
 
   // Placeholder data for reviews
   final List<Map<String, String>> _reviews = [
     {
       'stars': '★★★★☆',
-      'text': 'Clean and affordable. Good for students.',
-      'author': '- Student A',
+      'text':
+          'Clean and affordable place. Good internet connection. Can get a bit crowded during peak hours.',
+      'author': '- Mark Tan',
     },
     {
       'stars': '★★★★★',
-      'text': 'Friendly housemates and convenient location.',
-      'author': '- Young Professional B',
+      'text':
+          'Friendly housemates and accommodating owner. The location is very convenient for commuting.',
+      'author': '- Sarah Lim',
     },
     {
       'stars': '★★★☆☆',
-      'text': 'A bit crowded, but manageable for the price.',
-      'author': '- Traveler C',
+      'text':
+          'Basic amenities are provided. The curfew is a bit early but understandable for security.',
+      'author': '- David Lee',
     },
   ];
 
   // Function to show the Reviews modal
-  void _onReviewsPressed() {
+  void _showReviewsModal(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        // This modal displays the static reviews data
-        return ReviewsModal(reviews: _reviews);
+        return ReviewsModal(reviews: _reviews, bedspacerName: _bedspacerName);
       },
     );
   }
 
-  // display a message Edit button 
-  void _onEditPressed() {
+  // Placeholder function for the Edit button
+  void _editBedspacerDetails() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Edit details here...'), 
-        duration: Duration(seconds: 2), 
+        content: Text('Edit functionality not yet implemented.'),
       ),
     );
   }
 
-
- 
   Widget _buildStarRating(double rating) {
     List<Widget> stars = [];
     int fullStars = rating.floor();
@@ -92,333 +76,473 @@ class _BedspacerDetailsScreenState extends State<BedspacerDetailsScreen> {
 
     for (int i = 0; i < 5; i++) {
       if (i < fullStars) {
-        stars.add(const Icon(Icons.star, color: Colors.amber, size: 20));
+        stars.add(Icon(Icons.star, color: Colors.grey[400], size: 24));
       } else if (i == fullStars && halfStar >= 0.5) {
-        stars.add(const Icon(Icons.star_half, color: Colors.amber, size: 20));
+        stars.add(Icon(Icons.star_half, color: Colors.grey[400], size: 24));
       } else {
-        stars.add(const Icon(Icons.star_border, color: Colors.amber, size: 20));
+        stars.add(Icon(Icons.star_border, color: Colors.grey[400], size: 24));
       }
     }
-    return Row(children: stars);
+    return Row(mainAxisSize: MainAxisSize.min, children: stars);
+  }
+
+  Widget _buildDetailRow(String label, Widget content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 110,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[600],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: content),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar with a back button
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-          
-            Navigator.pop(context);
-          },
-        ),
-        backgroundColor: Colors.transparent, 
-        elevation: 0, 
+        title: const Text('Bedspacer Details'),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF6750A4),
+        foregroundColor: Colors.white,
       ),
-      extendBodyBehindAppBar: true, 
-      body: SingleChildScrollView( 
+      body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Bedspacer Image (Placeholder)
-            Image.network(
-              'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0',
-              width: double.infinity, 
-              height: 250,
-              fit: BoxFit.cover, 
+            SizedBox(
+              width: double.infinity,
+              height: 200,
+              child: Image.network(
+                'https://th.bing.com/th/id/OIP.2n7-DyvF3U2b9bH0o9OxMAHaE8?w=540&h=360&rs=1&pid=ImgDetMain',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: const Center(child: Text('Could not load image')),
+                ),
+              ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+            Container(
+              padding: const EdgeInsets.only(
+                  top: 16, left: 16, right: 16, bottom: 12),
+              color: Colors.white,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Bedspacer Name and Available Bedspaces counter
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded( 
-                        child: Text(
-                          _bedspacerName,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple, 
-                          ),
-                          overflow: TextOverflow.ellipsis, 
-                        ),
-                      ),
-                      const SizedBox(width: 16), 
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300], 
-                          borderRadius: BorderRadius.circular(20), 
-                        ),
+                      Expanded(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _availableBedspaces.toString(), 
+                              _bedspacerName,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
+                                color: Color(0xFF6750A4),
                               ),
                             ),
-                            const Text(
-                              'Available\nBedspaces', 
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                              ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    _location,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.person,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _owner,
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Expanded( 
-                        child: Text(
-                          _location,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                          overflow: TextOverflow.ellipsis, 
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // Owner details
-                  Row(
-                    children: [
-                      Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                       Expanded( 
-                        child: Text(
-                          _owner,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                           overflow: TextOverflow.ellipsis, 
-                        ),
-                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(), 
-                  const SizedBox(height: 16),
-
-                 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'RATINGS',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
+                      const SizedBox(width: 16),
+                      Column(
+                        // Column to stack remaining capacity text and circle
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _buildStarRating(_rating), 
-                          const SizedBox(width: 4),
-                          Text(
-                            _rating.toString(), 
-                            style: const TextStyle(fontSize: 16),
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF6750A4),
+                                width: 2.0,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _remainingCapacity.toString(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                  color: Color(0xFF6750A4),
+                                ),
+                              ),
+                            ),
                           ),
+                          const SizedBox(height: 5),
+                          const Text('Remaining\nCapacity',
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(fontSize: 10, color: Colors.black54)),
                         ],
                       ),
-                      const Spacer(), 
-                      
-                      OutlinedButton(
-                        onPressed: _onReviewsPressed,
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20), 
-                          ),
-                        ),
-                        child: const Text('Reviews'),
-                      ),
-                      const SizedBox(width: 8),
-                      
-                      // Edit Button
-                      OutlinedButton(
-                        onPressed: _onEditPressed, 
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20), 
-                          ),
-                        ),
-                        child: const Text('Edit'),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(), // Visual separator
-                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
 
-                  // Details Section (Bedspacer)
+            // Ratings section
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
-                    'DETAILS',
+                    'RATINGS',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                 
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Room Capacity'), 
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.people_alt, size: 20, color: Colors.grey[700]), 
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('$_roomCapacity persons', style: const TextStyle(fontSize: 14))), 
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                 
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Available Bedspaces'), 
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.bed, size: 20, color: Colors.grey[700]), 
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('$_availableBedspaces bedspaces', style: const TextStyle(fontSize: 14))), 
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  
-                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Bills Included:'), 
-                      ),
-                      const SizedBox(width: 16),
-                       
-                       Expanded( 
-                        child: Row(
-                          children: [
-                            if (_isWaterIncluded) ...[ 
-                              const Icon(Icons.water_drop, size: 20, color: Colors.blue),
-                              const SizedBox(width: 4),
-                              const Text('Water', style: TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_isElectricityIncluded) ...[ 
-                              const Icon(Icons.electric_bolt, size: 20, color: Colors.orange),
-                              const SizedBox(width: 4),
-                              const Text('Electric', style: TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_isWifiIncluded) ...[
-                              const Icon(Icons.wifi, size: 20, color: Colors.blue),
-                              const SizedBox(width: 4),
-                              const Text('Internet', style: TextStyle(fontSize: 14)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (_isLpgIncluded) ...[ 
-                              const Icon(Icons.local_fire_department, size: 20, color: Colors.red),
-                              const SizedBox(width: 4),
-                              const Text('LPG', style: TextStyle(fontSize: 14)),
-                            ],
-                            
-                             if (!_isWaterIncluded && !_isElectricityIncluded && !_isWifiIncluded && !_isLpgIncluded)
-                               const Text('None', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Access Hours detail
-                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Access Hours:'),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.lock_clock, size: 20, color: Colors.grey[700]), 
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text('24/7 access', style: TextStyle(fontSize: 14))), 
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Shared Bathrooms 
-                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Shared Bathrooms:'), 
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.bathtub, size: 20, color: Colors.grey[700]),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('$_sharedBathrooms bathrooms', style: const TextStyle(fontSize: 14))), 
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                  const Divider(), 
-                  const SizedBox(height: 16),
-
-                  // Price and Contract 
-                  Text(
-                    '₱${_monthlyRate.toStringAsFixed(2)} / month', 
-                    style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _contractLength,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          _buildStarRating(_rating),
+                          const SizedBox(width: 8),
+                          Text(
+                            _rating.toString(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        // Wrap buttons in a Column
+                        crossAxisAlignment: CrossAxisAlignment
+                            .end, // Align buttons to the right
+                        children: [
+                          SizedBox(
+                            // Added SizedBox for fixed width
+                            width: 100, // Set a fixed width
+                            child: OutlinedButton(
+                              onPressed: () => _showReviewsModal(context),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF6750A4)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                              ),
+                              child: const Text(
+                                'Reviews',
+                                style: TextStyle(color: Color(0xFF6750A4)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(
+                              height: 8), // Add spacing between buttons
+                          SizedBox(
+                            // Added SizedBox for fixed width
+                            width: 100, // Set the same fixed width
+                            child: OutlinedButton(
+                              // Added Edit button
+                              onPressed:
+                                  _editBedspacerDetails, // Placeholder edit function
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF6750A4)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                              ),
+                              child: const Text(
+                                'Edit',
+                                style: TextStyle(color: Color(0xFF6750A4)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'DETAILS',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Max Capacity
+                  _buildDetailRow(
+                    'Max. Capacity',
+                    Row(
+                      children: [
+                        const Icon(Icons.people,
+                            color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_maxCapacity persons',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Bills Included
+                  _buildDetailRow(
+                    'Bills Included:',
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        // Water icon and text
+                        if (_isWaterIncluded)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.water_drop,
+                                  color: const Color(0xFF6750A4), size: 22),
+                              const SizedBox(height: 4),
+                              const Text('Water',
+                                  style: TextStyle(fontSize: 12, color: Colors.black)),
+                            ],
+                          ),
+                        if (_isWaterIncluded) const SizedBox(width: 12),
+
+                        // Electricity
+                        if (_isElectricityIncluded)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bolt,
+                                  color: const Color(0xFF6750A4), size: 22),
+                              const SizedBox(height: 4),
+                              const Text('Electric',
+                                  style: TextStyle(fontSize: 12, color: Colors.black)),
+                            ],
+                          ),
+                        if (_isElectricityIncluded) const SizedBox(width: 12),
+
+                        // Internet
+                        if (_isWifiIncluded)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.wifi,
+                                  color: const Color(0xFF6750A4), size: 22),
+                              const SizedBox(height: 4),
+                              const Text('Internet',
+                                  style: TextStyle(fontSize: 12, color: Colors.black)),
+                            ],
+                          ),
+                        if (_isWifiIncluded) const SizedBox(width: 12),
+
+                        // LPG
+                        if (_isLpgIncluded)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.local_fire_department,
+                                  color: const Color(0xFF6750A4), size: 22),
+                              const SizedBox(height: 4),
+                              const Text('LPG',
+                                  style: TextStyle(fontSize: 12, color: Colors.black)),
+                            ],
+                          ),
+
+                        if (!_isWaterIncluded &&
+                            !_isElectricityIncluded &&
+                            !_isWifiIncluded &&
+                            !_isLpgIncluded)
+                          const Text('None',
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+
+                  // Curfew
+                  _buildDetailRow(
+                    'Curfew:',
+                    Row(
+                      children: [
+                        const Icon(Icons.lock_clock,
+                            color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          _curfew,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Gender - Added to match the image
+                  _buildDetailRow(
+                    'Gender:',
+                    Row(
+                      children: [
+                        const Icon(Icons.wc, color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          _gender,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Bathrooms
+                  _buildDetailRow(
+                    'Bathrooms:',
+                    Row(
+                      children: [
+                        const Icon(Icons.bathroom_outlined,
+                            color: Color(0xFF6750A4), size: 25),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_bathrooms bathrooms',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
+
+            // Price section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          const Text(
+                            '₱',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            _monthlyRate.toStringAsFixed(2),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            '/ month',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _contractLength,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Removed the call button container
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -426,66 +550,75 @@ class _BedspacerDetailsScreenState extends State<BedspacerDetailsScreen> {
   }
 }
 
-
+// Reviews Modal Widget
 class ReviewsModal extends StatelessWidget {
   final List<Map<String, String>> reviews;
+  final String bedspacerName;
 
-  const ReviewsModal({super.key, required this.reviews});
+  const ReviewsModal(
+      {super.key, required this.reviews, required this.bedspacerName});
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Reviews'),
-      content: SingleChildScrollView( 
+      title: Text('Reviews for $bedspacerName',
+          style: const TextStyle(color: Color(0xFF6750A4))),
+      content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, 
-          children: reviews.map<Widget>((review) {
-           
+          mainAxisSize: MainAxisSize.min,
+          children: reviews.map((review) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    review['stars']!, 
+                    review['stars']!,
                     style: const TextStyle(color: Colors.amber, fontSize: 18),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    review['text']!, // Display review text
+                    review['text']!,
                     style: const TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Text(
-                      review['author']!, 
+                      review['author']!,
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ),
-                  const Divider(), 
+                  if (review != reviews.last) Divider(color: Colors.grey[300]),
                 ],
               ),
             );
-          }).toList(), 
+          }).toList(),
         ),
       ),
       actions: <Widget>[
-        
         TextButton(
-          child: const Text('Close'),
           onPressed: () {
-            Navigator.of(context).pop(); 
+            Navigator.of(context).pop();
           },
+          child: const Text('Close'),
         ),
       ],
     );
   }
 }
 
-
-
 void main() {
-  runApp(const MyApp());
+  runApp(MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData.light().copyWith(
+      primaryColor: const Color(0xFF6750A4),
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF6750A4),
+        secondary: Color(0xFFEADDFF),
+      ),
+    ),
+    home: const BedspacerListing(),
+  ));
 }
