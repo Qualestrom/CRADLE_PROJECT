@@ -857,6 +857,24 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
   }
   // --- End Report Listing Methods ---
 
+  // --- Refresh Logic ---
+  Future<void> _handleRefresh() async {
+    // 1. Check connectivity again (optional, but good practice)
+    await _checkInitialConnectivity();
+
+    // 2. If connected, trigger a rebuild.
+    // This will cause _buildListingStream to be called again.
+    // The StreamBuilder will get the latest snapshot from Firestore.
+    // The FutureBuilder within _buildListingStream will re-execute
+    // processFirestoreListings, effectively refreshing image URLs and other processed data.
+    if (_isConnected && mounted) {
+      setState(() {});
+    }
+    // 3. You can return a Future.delayed if you want to ensure the indicator
+    //    is visible for a minimum duration, but setState usually handles it.
+    return;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Set the system UI overlay style for the status bar
@@ -883,8 +901,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
               right: 16.0), // Increased top padding
           child: Container(
             decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 250, 241,
-                  255), // FIXED: Using the color scheme from design
+              color: const Color(
+                  0xFFFBEFFD), // FIXED: Using the color scheme from design
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -920,7 +938,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
       ),
       drawer: _buildMenu(),
       body: _isConnected
-          ? _buildListingStream()
+          ? RefreshIndicator(
+              onRefresh: _handleRefresh, child: _buildListingStream())
           : _buildOfflineMessage(), // Switch body based on connectivity
     );
   }
@@ -930,7 +949,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
     final bool isBookmarked = _bookmarkedListingIds.contains(listing.uid);
     return Card(
       color:
-          const Color(0xFFF7F2FA), // FIXED: Using the color scheme from design
+          const Color(0xFFFBEFFD), // FIXED: Using the color scheme from design
       margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 5,
@@ -962,8 +981,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.purple[
-                        400], // FIXED: Using the color scheme from design
+                    backgroundColor: const Color(
+                        0xFF6750A4), // FIXED: Using the color scheme from design
                     child: Text(
                         listing.name.isNotEmpty
                             ? listing.name[0].toUpperCase()

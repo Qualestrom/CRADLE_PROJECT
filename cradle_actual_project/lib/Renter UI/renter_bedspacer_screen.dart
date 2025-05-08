@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Back-End/bedspace.dart';
 import 'package:logger/logger.dart';
+import '../Back-End/firestore_mapper.dart'; // Import FirestoreMapper
 import 'package:url_launcher/url_launcher.dart';
 import '../Menus/reviews_screen.dart'; // Import the new ReviewsScreen
+
+const double _kBottomBarHeight = 120.0; // Height of the bottom price bar
 
 class BedspacerListing extends StatefulWidget {
   final String listingId;
@@ -18,63 +21,12 @@ class BedspacerListing extends StatefulWidget {
 }
 
 class _BedspacerListingState extends State<BedspacerListing> {
-  // --- State Variables for Data Fetching ---
-  Bedspace? _bedspaceData;
-  bool _isLoading = true;
-  String? _error;
   final Logger _logger = Logger();
 
   @override
   void initState() {
     super.initState();
-    _fetchBedspaceDetails();
-  }
-
-  /// Fetches bedspace details from Firestore based on the listingId.
-  Future<void> _fetchBedspaceDetails() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('listings') // Use your actual collection name
-          .doc(widget.listingId)
-          .get();
-
-      if (mounted) {
-        if (docSnapshot.exists) {
-          final data = docSnapshot.data();
-          if (data is Map<String, dynamic>) {
-            // Use Bedspace.fromJson
-            _bedspaceData = Bedspace.fromJson(docSnapshot.id, data);
-          } else {
-            _error = "Bedspace data is missing or corrupt.";
-            _logger.w(
-                "Document ${widget.listingId} exists but data is null or not a Map.");
-          }
-          setState(() {
-            _isLoading = false;
-          });
-        } else {
-          setState(() {
-            _error = "Bedspace listing not found.";
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e, s) {
-      _logger.e("Error fetching bedspace details for ID: ${widget.listingId}",
-          error: e, stackTrace: s);
-      if (mounted) {
-        setState(() {
-          _error = "Failed to load bedspace details. Please try again.";
-          _isLoading = false;
-        });
-      }
-    }
+    // No initial fetch needed, StreamBuilder will handle it.
   }
 
   // Build star rating widget
@@ -95,6 +47,18 @@ class _BedspacerListingState extends State<BedspacerListing> {
       }
     }
     return Row(mainAxisSize: MainAxisSize.min, children: stars);
+  }
+
+  // --- Refresh Logic ---
+  Future<void> _handleRefresh() async {
+    // For a single document stream, setState is often enough to trigger
+    // the StreamBuilder to re-evaluate and the FutureBuilder to re-run.
+    if (mounted) {
+      setState(() {});
+    }
+    // You can return a Future.delayed if you want to ensure the indicator
+    // is visible for a minimum duration.
+    return;
   }
 
   // Build detail row widget
@@ -130,550 +94,672 @@ class _BedspacerListingState extends State<BedspacerListing> {
     );
   }
 
-  // Navigate to Reviews Screen
-  void _showReviewsModal(BuildContext context) {
-    if (_bedspaceData == null) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReviewsScreen(
-            listingId: widget.listingId, listingName: _bedspaceData!.name),
+  Widget _buildBottomPriceBar(Bedspace bedspaceData) {
+    return Container(
+      height: _kBottomBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, -2), // changes position of shadow
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  const Text(
+                    '₱',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  Text(
+                    bedspaceData.price.toStringAsFixed(2),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    '/ month',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                bedspaceData.contract > 0
+                    ? '${bedspaceData.contract}-year contract'
+                    : 'No contract',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+              ),
+            ],
+          ),
+          _buildCallButton(bedspaceData.contactNumber),
+        ],
       ),
     );
   }
 
-  // Helper function to determine which bills are included
-  Map<String, bool> _getBillsIncludedMap() {
-    Map<String, bool> billsMap = {
-      'Water': false,
-      'Electric': false,
-      'Internet': false,
-      'LPG': false
-    };
-
-    if (_bedspaceData != null && _bedspaceData!.billsIncluded.isNotEmpty) {
-      for (String bill in _bedspaceData!.billsIncluded) {
-        if (bill.toLowerCase().contains('water')) billsMap['Water'] = true;
-        if (bill.toLowerCase().contains('electric'))
-          billsMap['Electric'] = true;
-        if (bill.toLowerCase().contains('wifi') ||
-            bill.toLowerCase().contains('internet'))
-          billsMap['Internet'] = true;
-        if (bill.toLowerCase().contains('lpg') ||
-            bill.toLowerCase().contains('gas')) billsMap['LPG'] = true;
-      }
-    }
-
-    return billsMap;
+  Widget _buildCallButton(String contactNumber) {
+    return GestureDetector(
+      onTap: () async {
+        final Uri phoneLaunchUri = Uri(
+          scheme: 'tel',
+          path: contactNumber,
+        );
+        try {
+          if (await canLaunchUrl(phoneLaunchUri)) {
+            await launchUrl(phoneLaunchUri);
+          } else {
+            _logger.w('Could not launch $phoneLaunchUri');
+            if (mounted) {
+              // Check if widget is still in the tree
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not initiate phone call.')),
+              );
+            }
+          }
+        } catch (e) {
+          _logger.e('Error launching phone call', error: e);
+          if (mounted) {
+            // Check if widget is still in the tree
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error initiating phone call: $e')),
+            );
+          }
+        }
+      },
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEADDFF),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: const Icon(
+          Icons.phone,
+          color: Color(0xFF6750A4),
+          size: 24,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     // --- Handle Loading and Error States ---
-    if (_isLoading) {
-      return Scaffold(
-          appBar: AppBar(
-            title: const Text("Loading..."),
-            backgroundColor: const Color(0xFF6750A4),
-            foregroundColor: Colors.white,
-          ),
-          body: const Center(child: CircularProgressIndicator()));
-    }
-    if (_error != null || _bedspaceData == null) {
-      return Scaffold(
-          appBar: AppBar(
-            title: const Text("Error"),
-            backgroundColor: const Color(0xFF6750A4),
-            foregroundColor: Colors.white,
-          ),
-          body: Center(
-              child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(_error ?? 'Bedspace data could not be loaded.',
-                textAlign: TextAlign.center),
-          )));
-    }
-
-    // Get the bills included map
-    final billsMap = _getBillsIncludedMap();
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(_bedspaceData!.name),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF6750A4),
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image container
-            Container(
-              width: double.infinity,
-              height: 200,
-              child: Image.network(
-                _bedspaceData!.imageDownloadUrl != null &&
-                        _bedspaceData!.imageDownloadUrl!.isNotEmpty
-                    ? _bedspaceData!.imageDownloadUrl!
-                    : 'https://via.placeholder.com/400x250?text=No+Image',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 200,
-                  color: Colors.grey[300],
-                  child: const Center(child: Text('Could not load image')),
-                ),
-              ),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('listings')
+          .doc(widget.listingId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text("Loading..."),
+              backgroundColor: const Color(0xFF6750A4),
+              foregroundColor: Colors.white,
             ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          _logger.e(
+              "Error fetching bedspace stream for ID: ${widget.listingId}",
+              error: snapshot.error,
+              stackTrace: snapshot.stackTrace);
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text("Error"),
+              backgroundColor: const Color(0xFF6750A4),
+              foregroundColor: Colors.white,
+            ),
+            body: Center(
+                child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child:
+                  Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
+            )),
+          );
+        }
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text("Not Found"),
+              backgroundColor: const Color(0xFF6750A4),
+              foregroundColor: Colors.white,
+            ),
+            body: const Center(
+                child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Bedspace listing not found.',
+                  textAlign: TextAlign.center),
+            )),
+          );
+        }
 
-            // Header section with name, location, owner, and capacity
-            Container(
-              padding: const EdgeInsets.only(
-                  top: 16, left: 16, right: 16, bottom: 12),
-              color: Colors.white,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        // Document exists, now use FutureBuilder to map it (for image URL)
+        return FutureBuilder<Bedspace>(
+          future: FirestoreMapper.mapDocumentToForRent(snapshot.data!)
+              .then((forRent) => forRent as Bedspace), // Cast to Bedspace
+          builder: (context, bedspaceSnapshot) {
+            if (bedspaceSnapshot.connectionState == ConnectionState.waiting) {
+              return Scaffold(
+                appBar: AppBar(title: const Text("Processing...")),
+                body: const Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (bedspaceSnapshot.hasError) {
+              _logger.e(
+                  "Error mapping bedspace document for ID: ${widget.listingId}",
+                  error: bedspaceSnapshot.error);
+              return Scaffold(
+                appBar: AppBar(title: const Text('Error')),
+                body: Center(
+                    child: Text(
+                        'Error loading details: ${bedspaceSnapshot.error}')),
+              );
+            }
+            if (!bedspaceSnapshot.hasData) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Error')),
+                body: const Center(
+                    child: Text('Could not load bedspace details.')),
+              );
+            }
+
+            final Bedspace bedspaceData = bedspaceSnapshot.data!;
+            final billsMap =
+                _getBillsIncludedMapWithData(bedspaceData); // Pass data
+
+            return Scaffold(
+                // AppBar removed
+                backgroundColor: Colors.white,
+                body: RefreshIndicator(
+                  // Wrap Stack with RefreshIndicator
+                  onRefresh: _handleRefresh,
+                  child: Stack(
+                    // Ensures the Stack fills the available space
+                    fit: StackFit.expand,
+                    // Use Stack for overlaying back button
                     children: [
-                      Expanded(
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.only(
+                            bottom:
+                                _kBottomBarHeight), // Padding for the bottom bar
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _bedspaceData!.name,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF6750A4),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.location_on,
-                                    size: 16, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    _bedspaceData!.address,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
+                            // Image container - now at the very top of the scroll content
+                            Container(
+                              width: double.infinity,
+                              height: 300, // Adjust height as desired
+                              child: (bedspaceData.imageDownloadUrl != null &&
+                                      bedspaceData.imageDownloadUrl!.isNotEmpty)
+                                  ? Image.network(
+                                      bedspaceData.imageDownloadUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                        height: 300, // Match parent height
+                                        color: Colors.grey[300],
+                                        child: const Center(
+                                            child:
+                                                Text('Could not load image')),
+                                      ),
+                                    )
+                                  : Image.network(
+                                      'https://via.placeholder.com/400x250?text=No+Image',
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                        height: 300, // Match parent height
+                                        color: Colors.grey[300],
+                                        child: const Center(
+                                            child: Text(
+                                                'Placeholder not available')),
+                                      ),
                                     ),
-                                    overflow: TextOverflow.ellipsis,
+                            ), // End of Image Container
+
+                            // Header section with name, location, owner, and capacity
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 24),
+                              color: Colors.white,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              bedspaceData.name.isNotEmpty
+                                                  ? bedspaceData.name
+                                                  : "Bedspace Details",
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.w900,
+                                                color: Color(0xFF6750A4),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.location_on,
+                                                    size: 16,
+                                                    color: const Color(
+                                                        0xFF49454F)),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    bedspaceData.address,
+                                                    style: TextStyle(
+                                                      color: const Color(
+                                                          0xFF49454F),
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.person,
+                                                    size: 16,
+                                                    color: const Color(
+                                                        0xFF49454F)),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  bedspaceData.contactPerson,
+                                                  style: TextStyle(
+                                                    color:
+                                                        const Color(0xFF49454F),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 50,
+                                            height: 50,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: const Color(0xFF6750A4),
+                                                width: 2.0,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                bedspaceData.roommateCount
+                                                    .toString(),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 20,
+                                                  color: Color(0xFF6750A4),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          const Text('Remaining\nCapacity',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Color(0xFF49454F))),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(Icons.person,
-                                    size: 16, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _bedspaceData!.contactPerson,
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF6750A4),
-                                width: 2.0,
+                                ],
                               ),
                             ),
-                            child: Center(
-                              child: Text(
-                                _bedspaceData!.roommateCount.toString(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                  color: Color(0xFF6750A4),
-                                ),
+                            Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: Colors.grey[300]),
+
+                            // Ratings section
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'RATINGS',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          _buildStarRating(bedspaceData.rating),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            bedspaceData.rating
+                                                .toStringAsFixed(1),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.normal,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      OutlinedButton(
+                                        onPressed: () {
+                                          Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ReviewsScreen(
+                                                        listingId:
+                                                            widget.listingId,
+                                                        listingName:
+                                                            bedspaceData.name),
+                                              ));
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          side: const BorderSide(
+                                              color: Color(0xFF6750A4)),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                        ),
+                                        child: const Text(
+                                          'Reviews',
+                                          style: TextStyle(
+                                              color: Color(0xFF6750A4)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Details section
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'DETAILS',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildDetailRow(
+                                    'Max. Capacity',
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.people,
+                                            color: Color(0xFF6750A4), size: 25),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${bedspaceData.roommateCount} persons',
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildDetailRow(
+                                    'Bills Included:',
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.water_drop,
+                                                color: billsMap['Water']!
+                                                    ? const Color(0xFF6750A4)
+                                                    : Colors.grey[600],
+                                                size: 22),
+                                            const SizedBox(height: 4),
+                                            Text('Water',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: billsMap['Water']!
+                                                        ? Colors.black
+                                                        : Colors.grey[600])),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.bolt,
+                                                color: billsMap['Electric']!
+                                                    ? const Color(0xFF6750A4)
+                                                    : Colors.grey[600],
+                                                size: 22),
+                                            const SizedBox(height: 4),
+                                            Text('Electric',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: billsMap['Electric']!
+                                                        ? Colors.black
+                                                        : Colors.grey[600])),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.wifi,
+                                                color: billsMap['Internet']!
+                                                    ? const Color(0xFF6750A4)
+                                                    : Colors.grey[600],
+                                                size: 22),
+                                            const SizedBox(height: 4),
+                                            Text('Internet',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: billsMap['Internet']!
+                                                        ? Colors.black
+                                                        : Colors.grey[600])),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.local_fire_department,
+                                                color: billsMap['LPG']!
+                                                    ? const Color(0xFF6750A4)
+                                                    : Colors.grey[600],
+                                                size: 22),
+                                            const SizedBox(height: 4),
+                                            Text('LPG',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: billsMap['LPG']!
+                                                        ? Colors.black
+                                                        : Colors.grey[600])),
+                                          ],
+                                        ),
+                                        if (bedspaceData.billsIncluded.isEmpty)
+                                          Text('None',
+                                              style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey[600])),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildDetailRow(
+                                    'Curfew:',
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.lock_clock,
+                                            color: Color(0xFF6750A4), size: 25),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          bedspaceData.curfew != null &&
+                                                  bedspaceData
+                                                      .curfew!.isNotEmpty
+                                              ? bedspaceData.curfew!
+                                              : 'None',
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildDetailRow(
+                                    'Gender:',
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.wc,
+                                            color: Color(0xFF6750A4), size: 25),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _getGenderText(bedspaceData.gender),
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildDetailRow(
+                                    'Bathrooms:',
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.bathroom_outlined,
+                                            color: Color(0xFF6750A4), size: 25),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${bedspaceData.bathroomShareCount} shared bathrooms',
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (bedspaceData.otherDetails.isNotEmpty)
+                                    _buildDetailRow(
+                                      'Other Details:',
+                                      Text(
+                                        bedspaceData.otherDetails,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            // The SizedBoxes for bottom padding inside the scrollable area are removed
+                            // as the SingleChildScrollView now has bottom padding.
+                          ],
+                        ),
+                      ),
+                      // Positioned Back Button
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top +
+                            8, // Status bar padding + extra
+                        left: 16,
+                        child: Material(
+                          color: Colors
+                              .transparent, // Ensures InkWell splash is visible on transparent bg
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(
+                                24), // For circular splash
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(
+                                    0.3), // Semi-transparent background
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons
+                                    .arrow_back_ios_new, // iOS-style back arrow
+                                color: Colors.white, // White icon for contrast
+                                size: 20,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 5),
-                          const Text('Total\nCapacity',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontSize: 10, color: Colors.black54)),
-                        ],
+                        ),
+                      ),
+                      // Positioned Bottom Price Bar
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: _buildBottomPriceBar(bedspaceData),
                       ),
                     ],
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
-
-            // Ratings section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'RATINGS',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          _buildStarRating(_bedspaceData!.rating),
-                          const SizedBox(width: 8),
-                          Text(
-                            _bedspaceData!.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.normal,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                      OutlinedButton(
-                        onPressed: () => _showReviewsModal(context),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF6750A4)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                        ),
-                        child: const Text(
-                          'Reviews',
-                          style: TextStyle(color: Color(0xFF6750A4)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
-
-            // Details section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'DETAILS',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Max Capacity
-                  _buildDetailRow(
-                    'Max. Capacity',
-                    Row(
-                      children: [
-                        const Icon(Icons.people,
-                            color: Color(0xFF6750A4), size: 25),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_bedspaceData!.roommateCount} persons',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Bills Included
-                  _buildDetailRow(
-                    'Bills Included:',
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Water icon and text
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.water_drop,
-                                color: billsMap['Water']!
-                                    ? const Color(0xFF6750A4)
-                                    : Colors.grey[600],
-                                size: 22),
-                            const SizedBox(height: 4),
-                            Text('Water',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: billsMap['Water']!
-                                        ? Colors.black
-                                        : Colors.grey[600])),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Electricity
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.bolt,
-                                color: billsMap['Electric']!
-                                    ? const Color(0xFF6750A4)
-                                    : Colors.grey[600],
-                                size: 22),
-                            const SizedBox(height: 4),
-                            Text('Electric',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: billsMap['Electric']!
-                                        ? Colors.black
-                                        : Colors.grey[600])),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Internet
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.wifi,
-                                color: billsMap['Internet']!
-                                    ? const Color(0xFF6750A4)
-                                    : Colors.grey[600],
-                                size: 22),
-                            const SizedBox(height: 4),
-                            Text('Internet',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: billsMap['Internet']!
-                                        ? Colors.black
-                                        : Colors.grey[600])),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-
-                        // LPG
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.local_fire_department,
-                                color: billsMap['LPG']!
-                                    ? const Color(0xFF6750A4)
-                                    : Colors.grey[600],
-                                size: 22),
-                            const SizedBox(height: 4),
-                            Text('LPG',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: billsMap['LPG']!
-                                        ? Colors.black
-                                        : Colors.grey[600])),
-                          ],
-                        ),
-
-                        if (_bedspaceData!.billsIncluded.isEmpty)
-                          Text('None',
-                              style: TextStyle(
-                                  fontSize: 14, color: Colors.grey[600])),
-                      ],
-                    ),
-                  ),
-
-                  // Curfew
-                  _buildDetailRow(
-                    'Curfew:',
-                    Row(
-                      children: [
-                        const Icon(Icons.lock_clock,
-                            color: Color(0xFF6750A4), size: 25),
-                        const SizedBox(width: 8),
-                        Text(
-                          _bedspaceData!.curfew != null &&
-                                  _bedspaceData!.curfew!.isNotEmpty
-                              ? _bedspaceData!.curfew!
-                              : 'None',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Gender
-                  _buildDetailRow(
-                    'Gender:',
-                    Row(
-                      children: [
-                        const Icon(Icons.wc,
-                            color: Color(0xFF6750A4), size: 25),
-                        const SizedBox(width: 8),
-                        Text(
-                          _getGenderText(_bedspaceData!.gender),
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Bathrooms
-                  _buildDetailRow(
-                    'Bathrooms:',
-                    Row(
-                      children: [
-                        const Icon(Icons.bathroom_outlined,
-                            color: Color(0xFF6750A4), size: 25),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_bedspaceData!.bathroomShareCount} shared bathrooms',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Other details if available
-                  if (_bedspaceData!.otherDetails.isNotEmpty)
-                    _buildDetailRow(
-                      'Other Details:',
-                      Text(
-                        _bedspaceData!.otherDetails,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Divider(height: 1, thickness: 1, color: Colors.grey[300]),
-
-            // Price section
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          const Text(
-                            '₱',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          Text(
-                            _bedspaceData!.price.toStringAsFixed(2),
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            '/ month',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _bedspaceData!.contract > 0
-                            ? '${_bedspaceData!.contract}-year contract'
-                            : 'No contract',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ],
-                  ),
-                  GestureDetector(
-                    onTap: () async {
-                      final Uri phoneLaunchUri = Uri(
-                        scheme: 'tel',
-                        path: _bedspaceData!.contactNumber,
-                      );
-                      try {
-                        if (await canLaunchUrl(phoneLaunchUri)) {
-                          await launchUrl(phoneLaunchUri);
-                        } else {
-                          _logger.w('Could not launch $phoneLaunchUri');
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Could not initiate phone call.')),
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        _logger.e('Error launching phone call', error: e);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('Error initiating phone call: $e')),
-                          );
-                        }
-                      }
-                    },
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEADDFF),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: const Icon(
-                        Icons.phone,
-                        color: Color(0xFF6750A4),
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+                  ), // End of Stack
+                )); // End of FutureBuilder
+          }, // End of FutureBuilder builder
+        ); // End of FutureBuilder
+      }, // End of StreamBuilder builder
     );
   }
 
@@ -687,5 +773,30 @@ class _BedspacerListingState extends State<BedspacerListing> {
       case GenderPreference.any:
         return '⚥ Any Gender';
     }
+  }
+
+  // Helper function to determine which bills are included, now taking Bedspace data
+  Map<String, bool> _getBillsIncludedMapWithData(Bedspace bedspaceData) {
+    Map<String, bool> billsMap = {
+      'Water': false,
+      'Electric': false,
+      'Internet': false,
+      'LPG': false
+    };
+
+    if (bedspaceData.billsIncluded.isNotEmpty) {
+      for (String bill in bedspaceData.billsIncluded) {
+        if (bill.toLowerCase().contains('water')) billsMap['Water'] = true;
+        if (bill.toLowerCase().contains('electric'))
+          billsMap['Electric'] = true;
+        if (bill.toLowerCase().contains('wifi') ||
+            bill.toLowerCase().contains('internet')) {
+          billsMap['Internet'] = true;
+        }
+        if (bill.toLowerCase().contains('lpg') ||
+            bill.toLowerCase().contains('gas')) billsMap['LPG'] = true;
+      }
+    }
+    return billsMap;
   }
 }
