@@ -43,7 +43,7 @@ class ForRent {
   /// Subclasses should override this, call super.toJson(), and add their specific fields.
   Map<String, dynamic> toJson() {
     return {
-      'uid': ownerId,
+      'uid': ownerId, // Store ownerId property under 'uid' field in Firestore
       'imageFilename':
           // Note: imageUrl is NOT typically stored back in Firestore
           imageFilename, // Ensure this field name matches Firestore

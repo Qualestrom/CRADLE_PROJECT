@@ -35,7 +35,8 @@ class Apartment extends ForRent {
   factory Apartment.fromJson(String id, Map<String, dynamic> data) {
     return Apartment(
       uid: id, // Use the document ID passed as 'id'
-      ownerId: data['uid'] as String? ?? '', // <-- Read from Firestore data
+      ownerId:
+          data['uid'] as String? ?? '', // <-- Read owner's ID from 'uid' field
       imageDownloadUrl:
           data['imageDownloadUrl'] as String?, // <-- Read from Firestore data
       imageFilename: data['imageFilename'] as String? ?? '',

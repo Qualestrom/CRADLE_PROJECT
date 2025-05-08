@@ -13,7 +13,8 @@ import 'package:logger/logger.dart'; // Import logger
 final _logger = Logger(); // Make it private to this file if not used elsewhere
 final _storage = FirebaseStorage.instance; // Firebase Storage instance
 
-const String _firebaseStorageListingsPath = "";
+// Define the expected prefix for images in Firebase Storage.
+const String _expectedStoragePrefix = "listing_images/";
 
 /// Processes a Firestore QuerySnapshot to create a list of ForRent objects
 /// (either Apartment or Bedspace).
@@ -28,18 +29,28 @@ Future<List<ForRent>> processFirestoreListings(QuerySnapshot snapshot) async {
     if (data != null) {
       // Create a mutable copy of the data to enrich it with the imageDownloadUrl
       Map<String, dynamic> enrichedData = Map.from(data);
-      String? imageFilename = data['imageFilename'] as String?;
+      String? imageFilenameFromDb = data['imageFilename'] as String?;
 
-      if (imageFilename != null && imageFilename.isNotEmpty) {
+      if (imageFilenameFromDb != null && imageFilenameFromDb.isNotEmpty) {
+        String actualPathInStorage = ""; // Initialize
         try {
-          final String downloadUrl = await _storage
-              .ref('$_firebaseStorageListingsPath$imageFilename')
-              .getDownloadURL();
+          // Determine the correct path in Firebase Storage.
+          // Handles cases where imageFilenameFromDb might already contain the prefix.
+          if (imageFilenameFromDb.startsWith(_expectedStoragePrefix)) {
+            actualPathInStorage = imageFilenameFromDb;
+          } else {
+            actualPathInStorage = '$_expectedStoragePrefix$imageFilenameFromDb';
+          }
+
+          final String downloadUrl =
+              await _storage.ref(actualPathInStorage).getDownloadURL();
           enrichedData['imageDownloadUrl'] = downloadUrl;
-        } catch (e) {
+        } on FirebaseException catch (e, s) {
+          // Catch specific FirebaseException
           _logger.e(
-              "Error getting download URL for $imageFilename (doc ID: ${doc.id})",
-              error: e);
+              "Error getting download URL. Original imageFilename from DB: '$imageFilenameFromDb'. Attempted path: '$actualPathInStorage'. (doc ID: ${doc.id})",
+              error: e,
+              stackTrace: s);
           enrichedData['imageDownloadUrl'] =
               null; // Ensure it's null if fetch fails
         }
@@ -88,24 +99,32 @@ class FirestoreMapper {
     }
 
     Map<String, dynamic> enrichedData = Map.from(data);
-    String? imageFilename = data['imageFilename'] as String?;
+    String? imageFilenameFromDb = data['imageFilename'] as String?;
 
     // Ensure imageDownloadUrl is populated in enrichedData
     // Check if imageDownloadUrl is already present and valid, otherwise fetch it
     if (enrichedData['imageDownloadUrl'] == null ||
         (enrichedData['imageDownloadUrl'] is String &&
             (enrichedData['imageDownloadUrl'] as String).isEmpty)) {
-      if (imageFilename != null && imageFilename.isNotEmpty) {
+      String actualPathInStorage = ""; // Initialize
+      if (imageFilenameFromDb != null && imageFilenameFromDb.isNotEmpty) {
         try {
-          final String downloadUrl = await _storage
-              .ref(
-                  '$_firebaseStorageListingsPath$imageFilename') // Ensure _firebaseStorageListingsPath is correct (e.g., 'listings/')
-              .getDownloadURL();
+          // Determine the correct path in Firebase Storage.
+          if (imageFilenameFromDb.startsWith(_expectedStoragePrefix)) {
+            actualPathInStorage = imageFilenameFromDb;
+          } else {
+            actualPathInStorage = '$_expectedStoragePrefix$imageFilenameFromDb';
+          }
+
+          final String downloadUrl =
+              await _storage.ref(actualPathInStorage).getDownloadURL();
           enrichedData['imageDownloadUrl'] = downloadUrl;
-        } catch (e) {
+        } on FirebaseException catch (e, s) {
+          // Catch specific FirebaseException
           _logger.e(
-              "Error getting download URL for $imageFilename (doc ID: ${doc.id}) in mapDocumentToForRent",
-              error: e);
+              "Error getting download URL. Original imageFilename from DB: '$imageFilenameFromDb'. Attempted path: '$actualPathInStorage'. (doc ID: ${doc.id}) in mapDocumentToForRent",
+              error: e,
+              stackTrace: s);
           enrichedData['imageDownloadUrl'] = null; // Set to null if fetch fails
         }
       } else {

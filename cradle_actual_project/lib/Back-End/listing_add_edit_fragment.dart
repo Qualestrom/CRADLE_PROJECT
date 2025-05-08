@@ -1,26 +1,25 @@
-import 'dart:io'; // Required for File type if using image_picker
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart'; // For picking images
-import 'package:intl/intl.dart'; // For date/time formatting
-import 'package:uuid/uuid.dart'; // For generating unique IDs
-import 'package:logger/logger.dart'; // Import logger
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
+import 'package:logger/logger.dart';
+import '../utils/string_extensions.dart'; // Assuming you have this extension for string manipulations
 
 import 'apartment.dart'; // Assuming you have these models defined
-import 'bedspace.dart'; // Assuming you have these models defined
-import 'for_rent.dart'; // Assuming you have these models defined
+import 'bedspace.dart' as bedspace_model; // Alias to avoid conflict
 // --- Data Models (Assuming similar structure to your Java models) ---
 // You'll need to define these based on your exact Firestore structure
 // Add toJson methods for saving data
 
 // --- Enum for Property Type ---
-enum PropertyType { apartment, bedspace }
+enum PropertyType { apartment, bedspace } // Keep this enum
 
-// Initialize logger for this file
-final logger = Logger();
+// Initialize logger
+final Logger logger = Logger();
 
 // --- Flutter Widget ---
 class ListingAddEditScreen extends StatefulWidget {
@@ -38,8 +37,8 @@ class ListingAddEditScreen extends StatefulWidget {
 }
 
 class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
-  final _formKey = GlobalKey<FormState>(); // For form validation
-  late String _docId; // Will hold the document ID (generated if new)
+  final _formKey = GlobalKey<FormState>();
+  late String _docId;
 
   // Firebase Services
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -49,38 +48,29 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
   // State Variables
   bool _isLoading = false;
   bool _isSaving = false;
-  PropertyType _selectedType = PropertyType.apartment; // Default type
+  PropertyType _selectedType = PropertyType.apartment; // Use enum
 
   // Image Handling
-  XFile? _pickedImage; // From image_picker
-  String? _imageUrl; // URL from Firebase Storage (for display)
-  String? _imageFilename; // Filename in Firebase Storage
+  XFile? _pickedImage;
+  String? _imageUrl;
+  String? _imageFilename;
 
   // Text Editing Controllers
-  final _nameController = TextEditingController();
-  final _contactPersonController = TextEditingController();
-  final _contactNumberController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _otherDetailsController = TextEditingController();
-  final _contractYearsController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _contactPersonController;
+  late final TextEditingController _contactNumberController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _otherDetailsController;
+  late final TextEditingController _contractYearsController;
   // Apartment specific
-  final _bedroomsController = TextEditingController();
-  final _bathroomsController = TextEditingController();
-  final _capacityController = TextEditingController();
+  late final TextEditingController _bedroomsController;
+  late final TextEditingController _bathroomsController; // For apartment
+  late final TextEditingController _capacityController;
   // Bedspace specific
-  final _roommateCountController = TextEditingController();
-  final _bathroomShareCountController = TextEditingController();
-
-  // Toggle States
-  bool _billsIncluded = false;
-  final Set<String> _selectedBills = {}; // e.g., {'water', 'electricity'}
-  bool _hasCurfew = false;
-  bool _hasContract = false;
-
-  // Time Pickers
-  TimeOfDay _curfewFromTime = const TimeOfDay(hour: 22, minute: 0);
-  TimeOfDay _curfewToTime = const TimeOfDay(hour: 4, minute: 0);
+  late final TextEditingController _roommateCountController;
+  late final TextEditingController
+      _bathroomShareCountController; // For bedspace
   final DateFormat _timeFormatter = DateFormat('h:mm a'); // From intl package
 
   @override
@@ -89,11 +79,26 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
     _docId = widget.docId ??
         _db.collection('listings').doc().id; // Generate ID if new
 
+    // Initialize controllers
+    _nameController = TextEditingController();
+    _contactPersonController = TextEditingController();
+    _contactNumberController = TextEditingController();
+    _addressController = TextEditingController();
+    _priceController = TextEditingController();
+    _otherDetailsController = TextEditingController();
+    _contractYearsController = TextEditingController();
+    _bedroomsController = TextEditingController();
+    _bathroomsController = TextEditingController();
+    _capacityController = TextEditingController();
+    _roommateCountController = TextEditingController();
+    _bathroomShareCountController = TextEditingController();
+
     if (!widget.isNew && widget.docId != null) {
       _fetchInitialData();
     } else {
       // Set default states for a new listing if needed
       _updateCurfewButtonText(); // Set initial text
+      _updateContractButtonText(); // Set initial text for contract
     }
   }
 
@@ -115,6 +120,19 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
     super.dispose();
   }
 
+  // Toggle States and related data (from owner_edit.dart)
+  final Set<String> _selectedBills = {};
+  bool _hasCurfew = false;
+  TimeOfDay _curfewFromTime = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay _curfewToTime = const TimeOfDay(hour: 4, minute: 0);
+  String _curfewButtonText = 'No curfew';
+  bool _hasContract = false;
+  String _contractButtonText = 'No contract';
+  String _selectedContractUnit = 'Year/s'; // Default unit
+
+  // Bedspace Gender State
+  String _selectedGenderString = 'Any Gender'; // Default for UI dropdown
+
   // --- Data Fetching ---
   Future<void> _fetchInitialData() async {
     if (widget.docId == null) return;
@@ -126,25 +144,59 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
 
       if (docSnapshot.exists && docSnapshot.data() != null) {
         final data = docSnapshot.data()!;
-        final String type =
-            data['type'] ?? 'apartment'; // Assuming you store a 'type' field
+        // Get the 'type' field from Firestore, it might be null or have different casing.
+        final String? typeStringFromDb = data['type'] as String?;
 
-        ForRent forRent;
-        if (type == 'apartment') {
+        dynamic forRent; // This will hold the Apartment or Bedspace object
+
+        // Determine the type and create the corresponding object
+        // Use toLowerCase() for case-insensitive comparison.
+        if (typeStringFromDb?.toLowerCase() == 'apartment') {
           _selectedType = PropertyType.apartment;
           forRent = Apartment.fromJson(docSnapshot.id, data);
           final apartment = forRent as Apartment;
           _bedroomsController.text = apartment.noOfBedrooms.toString();
           _bathroomsController.text = apartment.noOfBathrooms.toString();
           _capacityController.text = apartment.capacity.toString();
-        } else {
-          // Assuming bedspace
+        } else if (typeStringFromDb?.toLowerCase() == 'bedspace') {
           _selectedType = PropertyType.bedspace;
-          forRent = Bedspace.fromJson(docSnapshot.id, data);
-          final bedspace = forRent as Bedspace;
+          forRent = bedspace_model.Bedspace.fromJson(docSnapshot.id, data);
+          final bedspace = forRent as bedspace_model.Bedspace;
           _roommateCountController.text = bedspace.roommateCount.toString();
           _bathroomShareCountController.text =
               bedspace.bathroomShareCount.toString();
+          _selectedGenderString =
+              _genderEnumToString(bedspace.gender); // Initialize gender UI
+        } else {
+          // Handle cases where 'type' is missing or is an unknown value.
+          if (typeStringFromDb == null) {
+            // If 'type' field is completely missing, default to apartment (as per previous logic)
+            // but log a warning.
+            logger.w(
+                "Listing type field is missing for document ${widget.docId}. Defaulting to 'apartment'.");
+            _selectedType = PropertyType.apartment;
+            forRent = Apartment.fromJson(docSnapshot.id, data);
+            // Attempt to populate apartment specific fields; they will use defaults from the model if fields are missing in data.
+            final apartment = forRent as Apartment;
+            _bedroomsController.text = apartment.noOfBedrooms.toString();
+            _bathroomsController.text = apartment.noOfBathrooms.toString();
+            _capacityController.text = apartment.capacity.toString();
+          } else {
+            // If 'type' field exists but is an unknown/unhandled value.
+            logger.e(
+                "Unknown listing type '$typeStringFromDb' for document ${widget.docId}. Cannot reliably edit.");
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'Error: Unknown listing type "$typeStringFromDb". Cannot load data.')),
+              );
+              Navigator.pop(
+                  context); // Go back as we can't process this listing
+            }
+            setState(() => _isLoading = false);
+            return; // Exit _fetchInitialData early to prevent a crash
+          }
         }
 
         // Populate common fields
@@ -159,25 +211,48 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         // Image
         _imageFilename = forRent.imageFilename;
         if (_imageFilename != null && _imageFilename!.isNotEmpty) {
+          String pathInStorage = ''; // Initialize pathInStorage
           try {
-            _imageUrl = await _storage
-                .ref()
-                .child(_imageFilename!)
-                .getDownloadURL(); // Changed print to logger.e
+            const String expectedPrefix = 'listing_images/';
+
+            // Determine the correct path in Firebase Storage.
+            // Handles cases where _imageFilename might already contain the prefix (e.g., from older data).
+            if (_imageFilename!.startsWith(expectedPrefix)) {
+              pathInStorage = _imageFilename!;
+            } else {
+              pathInStorage =
+                  '$expectedPrefix$_imageFilename'; // Removed trailing '!'
+            }
+
+            final String downloadUrl = await _storage
+                .ref(pathInStorage) // Use the determined path
+                .getDownloadURL();
+            if (mounted) {
+              // Check mounted before setState
+              setState(() => _imageUrl = downloadUrl);
+            }
           } catch (e, s) {
-            logger.e("Error getting image URL for $_imageFilename",
-                error: e, stackTrace: s);
-            // Handle image loading error (e.g., show placeholder)
+            // Log the original _imageFilename from Firestore and the path we attempted to fetch
+            logger.e(
+                "Error getting image URL. Original imageFilename from Firestore: '$_imageFilename'. Attempted path: '$pathInStorage'",
+                error: e,
+                stackTrace: s);
+            if (mounted) {
+              // Check mounted before setState
+              setState(() {
+                _imageFilename =
+                    null; // Clear if fetch fails to prevent re-saving stale data
+                _imageUrl = null; // Ensure UI shows a placeholder
+              });
+            }
           }
         }
 
         // Bills Included
+        _selectedBills.clear(); // Clear before populating
         if (forRent.billsIncluded.isNotEmpty) {
-          _billsIncluded = true;
-          _selectedBills.addAll(forRent.billsIncluded);
-        } else {
-          _billsIncluded = false;
-          _selectedBills.clear();
+          _selectedBills
+              .addAll(forRent.billsIncluded.map((b) => b.toLowerCase()));
         }
 
         // Curfew
@@ -195,7 +270,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
               _curfewToTime = TimeOfDay.fromDateTime(toDateTime);
             } else {
               logger.w(
-                  "Error parsing curfew string: Invalid format '${forRent.curfew}'"); // Changed print to logger.w
+                  "Error parsing curfew string: Invalid format '${forRent.curfew}' for doc ${widget.docId}");
               _hasCurfew = false; // Reset if format is wrong
             }
           } catch (e, s) {
@@ -203,7 +278,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
             logger.e(
                 "Error parsing curfew time from string '${forRent.curfew}'",
                 error: e,
-                stackTrace: s); // Changed print to logger.e
+                stackTrace: s);
           }
         } else {
           _hasCurfew = false;
@@ -214,13 +289,15 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         if (forRent.contract > 0) {
           _hasContract = true;
           _contractYearsController.text = forRent.contract.toString();
+          _selectedContractUnit = 'Year/s'; // Assuming years from model
         } else {
           _hasContract = false;
+          _contractYearsController.text = '0';
         }
+        _updateContractButtonText();
       } else {
         // Handle document not found
-        logger.w(
-            "Document ${widget.docId} not found during edit fetch!"); // Changed print to logger.w
+        logger.w("Document ${widget.docId} not found during edit fetch!");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Listing not found.')),
@@ -230,7 +307,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
       }
     } catch (e, s) {
       logger.e("Error fetching data for doc ${widget.docId}",
-          error: e, stackTrace: s); // Changed print to logger.e
+          error: e, stackTrace: s);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading data: ${e.toString()}')),
@@ -258,11 +335,10 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         // Optional: Immediately upload or wait until save
         // await _uploadImage(pickedFile); // Example: upload immediately
       } else {
-        logger.i('No image selected via picker.'); // Changed print to logger.i
+        logger.i('No image selected via picker.');
       }
     } catch (e, s) {
-      logger.e("Error picking image",
-          error: e, stackTrace: s); // Changed print to logger.e
+      logger.e("Error picking image", error: e, stackTrace: s);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error picking image: ${e.toString()}')),
@@ -274,14 +350,14 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
   Future<String?> _uploadImage(XFile imageFile) async {
     if (_auth.currentUser == null) return null; // Check user auth
 
-    setState(() => _isSaving = true); // Show loading indicator during upload
+    // setState(() => _isSaving = true); // Handled by _saveData
     // Declare filename outside the try block to make it accessible in catch
     final String filename = _imageFilename ?? '${const Uuid().v4()}.jpg';
 
     try {
       final file = File(imageFile.path);
-      final ref =
-          _storage.ref().child(filename); // Store in root or a subfolder
+      // Store in a specific folder like 'listing_images'
+      final ref = _storage.ref().child('listing_images/$filename');
       final uploadTask = ref.putFile(file);
 
       final snapshot = await uploadTask.whenComplete(() => {});
@@ -289,12 +365,10 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
 
       _imageFilename = filename; // Store the filename used
       _imageUrl = downloadUrl; // Store the download URL
-      logger.i(
-          'Image upload successful: $downloadUrl (Filename: $filename)'); // Changed print to logger.i
+      logger.i('Image upload successful: $downloadUrl (Filename: $filename)');
       return downloadUrl;
     } catch (e, s) {
-      logger.e("Error uploading image $filename",
-          error: e, stackTrace: s); // Changed print to logger.e
+      logger.e("Error uploading image $filename", error: e, stackTrace: s);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error uploading image: ${e.toString()}')),
@@ -304,7 +378,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
     } finally {
       if (mounted) {
         // Don't set _isSaving false here if part of a larger save operation
-        // setState(() => _isSaving = false);
+        // setState(() => _isSaving = false); // Handled by _saveData
       }
     }
   }
@@ -315,6 +389,25 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
       context: context,
       initialTime: initialTime,
       helpText: isFromTime ? "Set curfew start time" : "Set curfew end time",
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF9C27B0),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black87,
+              secondary: Color(0xFF9C27B0),
+              onSecondary: Colors.white,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF9C27B0)),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (selectedTime != null) {
@@ -329,8 +422,8 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         _updateCurfewButtonText(); // Update display text
       });
       if (isFromTime) {
-        // Show the 'to' picker after 'from' is confirmed
-        _showTimePicker(false);
+        // Show the 'to' picker after 'from' is confirmed using Future.microtask
+        Future.microtask(() => _showTimePicker(false));
       }
     }
   }
@@ -343,11 +436,20 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
   }
 
   // Helper to update the curfew button text state
-  String _curfewButtonText = '';
   void _updateCurfewButtonText() {
     setState(() {
       _curfewButtonText =
           '${_formatTimeOfDay(_curfewFromTime)} - ${_formatTimeOfDay(_curfewToTime)}';
+    });
+  }
+
+  // Helper to update the contract button text state
+  void _updateContractButtonText() {
+    setState(() {
+      final duration = _contractYearsController.text.trim();
+      _contractButtonText = _hasContract
+          ? '${duration.isNotEmpty ? duration : '0'} $_selectedContractUnit'
+          : 'No contract';
     });
   }
 
@@ -367,14 +469,10 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
 
     // 1. Upload image if a new one was picked
     if (_pickedImage != null) {
-      final uploadSuccess = await _uploadImage(_pickedImage!);
-      if (uploadSuccess == null) {
+      final uploadedUrl = await _uploadImage(_pickedImage!);
+      if (uploadedUrl == null) {
         // Handle upload failure
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Image upload failed. Please try again.')),
-        );
         return; // Stop saving process
       }
     } else if (_imageUrl == null && _imageFilename == null && widget.isNew) {
@@ -385,8 +483,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
       //   const SnackBar(content: Text('Please select an image.')),
       // );
       // return;
-      logger.w(
-          "Saving new listing without an image."); // Changed print to logger.w
+      logger.w("Saving new listing without an image.");
     }
 
     // 2. Prepare data object
@@ -398,18 +495,20 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
     final otherDetails = _otherDetailsController.text.trim();
 
-    final List<String> bills = _billsIncluded ? _selectedBills.toList() : [];
-    final String? curfew = _hasCurfew
+    // Derive bills directly from _selectedBills
+    final List<String> bills =
+        _selectedBills.map((b) => b.capitalizeFirstLetter()).toList();
+    final String curfew = _hasCurfew // Changed from String? to String
         ? '${_formatTimeOfDay(_curfewFromTime)} - ${_formatTimeOfDay(_curfewToTime)}'
-        : null;
-    final int contract = _hasContract
+        : ""; // Send empty string instead of null
+    final int contract = _hasContract // Use _hasContract state
         ? (int.tryParse(_contractYearsController.text.trim()) ?? 0)
         : 0;
 
     const double latitude = 13.785176;
     const double longitude = 121.073863;
 
-    ForRent listingData;
+    dynamic listingData; // Use dynamic if the type will be determined later
 
     try {
       if (_selectedType == PropertyType.apartment) {
@@ -418,7 +517,8 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         final capacity = int.tryParse(_capacityController.text.trim()) ?? 0;
 
         listingData = Apartment(
-          uid: uid,
+          uid: _docId, // Use the listing's document ID
+          ownerId: uid, // Use the current user's UID as the ownerId
           imageFilename: _imageFilename ?? '', // Store filename
           name: name,
           contactPerson: contactPerson,
@@ -441,9 +541,11 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
             int.tryParse(_roommateCountController.text.trim()) ?? 0;
         final bathroomShareCount =
             int.tryParse(_bathroomShareCountController.text.trim()) ?? 0;
-
-        listingData = Bedspace(
-          uid: uid,
+        final gender = _genderStringToEnum(_selectedGenderString);
+        listingData = bedspace_model.Bedspace(
+          // Use aliased name
+          uid: _docId, // Use the listing's document ID
+          ownerId: uid, // Use the current user's UID as the ownerId
           imageFilename: _imageFilename ?? '', // Store filename
           name: name,
           contactPerson: contactPerson,
@@ -458,7 +560,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
           otherDetails: otherDetails,
           roommateCount: roommateCount,
           bathroomShareCount: bathroomShareCount,
-          gender: GenderPreference.any, // Default or set based on user input
+          gender: gender,
         );
       }
 
@@ -476,10 +578,9 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         Navigator.pop(context);
         // Or: Navigator.popUntil(context, ModalRoute.withName('/myProperties')); // Example
       }
-    } catch (e) {
+    } catch (e, s) {
       if (mounted) {
-        logger.e("Error saving data for doc $_docId",
-            error: e); // Changed print to logger.e
+        logger.e("Error saving data for doc $_docId", error: e, stackTrace: s);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving data: ${e.toString()}')),
         );
@@ -494,106 +595,164 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
   // --- Build Method ---
   @override
   Widget build(BuildContext context) {
+    // Update button texts based on current state before building
+    // REMOVED: _updateCurfewButtonText(); // This was causing setState in build
+    // REMOVED: _updateContractButtonText(); // This was causing setState in build
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isNew ? 'New Property' : 'Edit Property'),
-        actions: [
-          if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.only(right: 16.0),
-              child: Center(
-                  child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.check),
-              onPressed: _saveData,
-              tooltip: 'Save',
-            ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
               child: ListView(
-                // Use ListView for scrollable content
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
                 children: [
-                  // --- Property Type Toggle ---
-                  _buildSectionTitle('Property Type'),
-                  ToggleButtons(
-                    isSelected: [
-                      _selectedType == PropertyType.apartment,
-                      _selectedType == PropertyType.bedspace,
-                    ],
-                    onPressed: (index) {
-                      setState(() {
-                        _selectedType = index == 0
-                            ? PropertyType.apartment
-                            : PropertyType.bedspace;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(8.0),
-                    constraints: BoxConstraints(
-                        minWidth: (MediaQuery.of(context).size.width - 40) / 2,
-                        minHeight: 40.0), // Adjust width
-                    children: const [
-                      Text('Apartment'),
-                      Text('Bedspace'),
-                    ],
+                  _buildCustomAppBar(),
+                  const SizedBox(height: 20),
+                  _buildSectionLabel('Type'),
+                  _buildPropertyTypeSelector(),
+                  const SizedBox(height: 16),
+                  _buildSectionLabel('Basic Details'),
+                  _buildTextField(
+                    _nameController,
+                    labelText: 'Property Name / Title',
+                    hintText: 'e.g., Cozy Apartment, Bedspace near Campus',
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Please enter a name'
+                        : null,
                   ),
                   const SizedBox(height: 16),
-
-                  // --- Image Section ---
-                  _buildSectionTitle('Property Image'),
+                  _buildTextField(
+                    _contactPersonController,
+                    labelText: 'Contact Person',
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Please enter a contact person'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    _contactNumberController,
+                    labelText: 'Contact Number',
+                    inputType: TextInputType.phone,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Please enter a contact number'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    _addressController,
+                    labelText: 'Full Address',
+                    maxLines: 2,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Please enter an address'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    _priceController,
+                    labelText: 'Price (per month)',
+                    inputType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    hasPrefixText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a price';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Please enter a valid number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (_selectedType == PropertyType.apartment)
+                    _buildApartmentDetails(),
+                  if (_selectedType == PropertyType.bedspace)
+                    _buildBedspaceDetails(),
+                  _buildSectionLabel('Additional Details'),
+                  _buildToggleSection(
+                    title: 'Bills Included',
+                    value: _selectedBills.isEmpty
+                        ? 'None'
+                        : 'Selected (${_selectedBills.length})',
+                    onTap: _isSaving ? null : _showBillsBottomSheet,
+                    isChecked: _selectedBills.isNotEmpty,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildToggleSection(
+                    title: 'Curfew',
+                    value: _hasCurfew ? _curfewButtonText : 'No curfew',
+                    onTap: _isSaving
+                        ? null
+                        : () {
+                            setState(() {
+                              _hasCurfew = !_hasCurfew; // Toggle the state
+                              if (_hasCurfew) {
+                                // If curfew is now enabled, immediately show the time picker.
+                                // _showTimePicker will handle updating the button text if times are changed.
+                                _showTimePicker(true);
+                              } else {
+                                // If curfew is disabled, just update the button text.
+                                _updateCurfewButtonText();
+                              }
+                            });
+                          },
+                    isChecked: _hasCurfew,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildToggleSection(
+                    title: 'Contract',
+                    value: _contractButtonText,
+                    onTap: _isSaving ? null : _showContractBottomSheet,
+                    isChecked: _hasContract,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    _otherDetailsController,
+                    labelText: 'Other Details / House Rules',
+                    hintText: 'e.g., No pets allowed, Visitors policy...',
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSectionLabel('Property Image'),
                   Center(
                     child: Stack(
                       alignment: Alignment.bottomRight,
                       children: [
                         Container(
-                          width: double.infinity, // Make it wider
-                          height: 200, // Adjust height as needed
+                          width: double.infinity,
+                          height: 200,
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey),
                             borderRadius: BorderRadius.circular(8),
                             color: Colors.grey[200],
                           ),
                           child: ClipRRect(
-                            // Clip the image to the container's bounds
                             borderRadius: BorderRadius.circular(8.0),
                             child: _pickedImage != null
-                                ? Image.file(
-                                    File(_pickedImage!.path),
-                                    fit: BoxFit.cover, // Cover the area
+                                ? Image.file(File(_pickedImage!.path),
+                                    fit: BoxFit.cover,
                                     width: double.infinity,
-                                    height: 200,
-                                  )
+                                    height: 200)
                                 : _imageUrl != null
                                     ? Image.network(
                                         _imageUrl!,
-                                        fit: BoxFit.cover, // Cover the area
+                                        fit: BoxFit.cover,
                                         width: double.infinity,
                                         height: 200,
-                                        loadingBuilder:
-                                            (context, child, progress) {
-                                          return progress == null
-                                              ? child
-                                              : const Center(
-                                                  child:
-                                                      CircularProgressIndicator());
-                                        },
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return const Center(
-                                              child: Icon(Icons.broken_image,
-                                                  size: 50,
-                                                  color: Colors.grey));
-                                        },
+                                        loadingBuilder: (context, child,
+                                                progress) =>
+                                            progress == null
+                                                ? child
+                                                : const Center(
+                                                    child:
+                                                        CircularProgressIndicator()),
+                                        errorBuilder: (context, error,
+                                                stackTrace) =>
+                                            const Center(
+                                                child: Icon(Icons.broken_image,
+                                                    size: 50,
+                                                    color: Colors.grey)),
                                       )
                                     : const Center(
                                         child: Icon(Icons.house_outlined,
@@ -603,7 +762,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: FloatingActionButton.small(
-                            onPressed: _pickImage,
+                            onPressed: _isSaving ? null : _pickImage,
                             tooltip: 'Select Image',
                             child: const Icon(Icons.add_a_photo),
                           ),
@@ -611,212 +770,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // --- Basic Details ---
-                  _buildSectionTitle('Basic Details'),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                        labelText: 'Property Name / Title',
-                        border: OutlineInputBorder()),
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Please enter a name'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _contactPersonController,
-                    decoration: const InputDecoration(
-                        labelText: 'Contact Person',
-                        border: OutlineInputBorder()),
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Please enter a contact person'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _contactNumberController,
-                    decoration: const InputDecoration(
-                        labelText: 'Contact Number',
-                        border: OutlineInputBorder()),
-                    keyboardType: TextInputType.phone,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Please enter a contact number'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: const InputDecoration(
-                        labelText: 'Full Address',
-                        border: OutlineInputBorder()),
-                    maxLines: 2,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Please enter an address'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(
-                        labelText: 'Price (per month)',
-                        prefixText: '₱ ',
-                        border: OutlineInputBorder()),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Please enter a price';
-                      if (double.tryParse(value) == null)
-                        return 'Please enter a valid number';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // --- Apartment Specific Details ---
-                  if (_selectedType == PropertyType.apartment) ...[
-                    _buildSectionTitle('Apartment Details'),
-                    TextFormField(
-                      controller: _bedroomsController,
-                      decoration: const InputDecoration(
-                          labelText: 'Number of Bedrooms',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          _validateIntField(value, 'bedrooms'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _bathroomsController,
-                      decoration: const InputDecoration(
-                          labelText: 'Number of Bathrooms',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          _validateIntField(value, 'bathrooms'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _capacityController,
-                      decoration: const InputDecoration(
-                          labelText: 'Capacity (Max Persons)',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          _validateIntField(value, 'capacity'),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // --- Bedspace Specific Details ---
-                  if (_selectedType == PropertyType.bedspace) ...[
-                    _buildSectionTitle('Bedspace Details'),
-                    TextFormField(
-                      controller: _roommateCountController,
-                      decoration: const InputDecoration(
-                          labelText: 'Number of Roommates (in the room)',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          _validateIntField(value, 'roommates'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _bathroomShareCountController,
-                      decoration: const InputDecoration(
-                          labelText: 'Bathroom is Shared With (Persons)',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number,
-                      validator: (value) =>
-                          _validateIntField(value, 'persons sharing bathroom'),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // --- Additional Details ---
-                  _buildSectionTitle('Additional Details'),
-
-                  // Bills Included Toggle + Chips
-                  _buildToggleRow(
-                    label: 'Bills Included?',
-                    value: _billsIncluded,
-                    onChanged: (value) =>
-                        setState(() => _billsIncluded = value),
-                  ),
-                  if (_billsIncluded)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                      child: Wrap(
-                        spacing: 8.0,
-                        runSpacing: 4.0,
-                        children: [
-                          _buildFilterChip('water', 'Water'),
-                          _buildFilterChip('electricity', 'Electricity'),
-                          _buildFilterChip('internet', 'Internet'),
-                          _buildFilterChip('lpg', 'LPG'),
-                          // Add more chips as needed
-                        ],
-                      ),
-                    ),
-
-                  // Curfew Toggle + Time Picker Button
-                  _buildToggleRow(
-                    label: 'Curfew?',
-                    value: _hasCurfew,
-                    onChanged: (value) => setState(() => _hasCurfew = value),
-                  ),
-                  if (_hasCurfew)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time),
-                        label: Text(
-                            _curfewButtonText), // Display selected time range
-                        onPressed: () =>
-                            _showTimePicker(true), // Start with 'from' picker
-                        style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(
-                                double.infinity, 40), // Make button wider
-                            alignment: Alignment.centerLeft,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12)),
-                      ),
-                    ),
-
-                  // Contract Toggle + Years Input
-                  _buildToggleRow(
-                    label: 'Contract?',
-                    value: _hasContract,
-                    onChanged: (value) => setState(() => _hasContract = value),
-                  ),
-                  if (_hasContract)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                      child: TextFormField(
-                        controller: _contractYearsController,
-                        decoration: const InputDecoration(
-                            labelText: 'Contract Duration (Years)',
-                            border: OutlineInputBorder()),
-                        keyboardType: TextInputType.number,
-                        validator: (value) => _validateIntField(
-                            value, 'contract years',
-                            allowZero: false),
-                      ),
-                    ),
-
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _otherDetailsController,
-                    decoration: const InputDecoration(
-                        labelText: 'Other Details / House Rules',
-                        hintText: 'e.g., No pets allowed, Visitors policy...',
-                        border: OutlineInputBorder()),
-                    maxLines: 4,
-                    // No validator needed unless specific rules apply
-                  ),
-                  const SizedBox(height: 24), // Bottom padding
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -824,66 +778,572 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
   }
 
   // --- Helper Widgets ---
+  // (Copied and adapted from owner_edit.dart)
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-      child: Text(
-        title,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
+  Widget _buildCustomAppBar() {
+    return Container(
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECE6F0),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                widget.isNew ? "Add Property" : "Edit Property",
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          _isSaving
+              ? const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.check, color: Colors.purple),
+                  onPressed: _saveData,
+                ),
+        ],
       ),
     );
   }
 
-  // Helper for integer field validation
+  Widget _buildSectionLabel(String label) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8, top: 16),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPropertyTypeSelector() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: _isSaving
+                  ? null
+                  : () =>
+                      setState(() => _selectedType = PropertyType.apartment),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _selectedType == PropertyType.apartment
+                      ? const Color(0xFFDFD5EC)
+                      : Colors.transparent,
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(25)),
+                  border: _selectedType == PropertyType.apartment
+                      ? Border.all(color: Colors.black, width: 1.0)
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_selectedType == PropertyType.apartment)
+                      const Icon(Icons.check, color: Colors.black, size: 18),
+                    if (_selectedType == PropertyType.apartment)
+                      const SizedBox(width: 4),
+                    Text(
+                      'Apartment',
+                      style: TextStyle(
+                        fontWeight: _selectedType == PropertyType.apartment
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: _isSaving
+                  ? null
+                  : () => setState(() => _selectedType = PropertyType.bedspace),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _selectedType == PropertyType.bedspace
+                      ? const Color(0xFFDFD5EC)
+                      : Colors.transparent,
+                  borderRadius:
+                      const BorderRadius.horizontal(right: Radius.circular(25)),
+                  border: _selectedType == PropertyType.bedspace
+                      ? Border.all(color: Colors.black, width: 1.0)
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_selectedType == PropertyType.bedspace)
+                      const Icon(Icons.check, color: Colors.black, size: 18),
+                    if (_selectedType == PropertyType.bedspace)
+                      const SizedBox(width: 4),
+                    Text(
+                      'Bedspace',
+                      style: TextStyle(
+                        fontWeight: _selectedType == PropertyType.bedspace
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller, {
+    TextInputType inputType = TextInputType.text,
+    bool hasPrefixText = false,
+    int maxLines = 1,
+    String? labelText,
+    String? hintText,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+        // Changed to TextFormField for validation
+        controller: controller,
+        keyboardType: inputType,
+        maxLines: maxLines,
+        style: const TextStyle(color: Colors.black),
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(
+              color: Color(0xFF49454F),
+              fontSize: 12,
+              fontWeight: FontWeight.bold),
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          hintText: hintText,
+          prefixText: hasPrefixText ? '₱ ' : null,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          border: OutlineInputBorder(
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: Colors.black, width: 1.0),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.cancel, size: 18, color: Colors.grey),
+                  onPressed: () {
+                    controller.clear();
+                    setState(
+                        () {}); // To rebuild and hide suffix if text is cleared
+                  },
+                )
+              : null,
+        ),
+        validator: validator,
+        // Removed onChanged: (_) => setState(() {}). TextFormField rebuilds internally on controller changes.
+        onChanged: (_) {
+          /* If specific logic is needed on user input, add here, but avoid broad setState if possible */
+        });
+  }
+
+  Widget _buildToggleSection({
+    required String title,
+    required String value,
+    required VoidCallback? onTap,
+    required bool isChecked,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black, width: 1.0),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isChecked
+                      ? const Color(0xFF757575)
+                      : Colors.grey.shade300, // Adjusted color for unchecked
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(25)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isChecked)
+                      const Icon(Icons.check, color: Colors.white, size: 18),
+                    if (isChecked) const SizedBox(width: 4),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: isChecked ? Colors.white : Colors.black54,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                      BorderRadius.horizontal(right: Radius.circular(25)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: const TextStyle(color: Color(0xFF878585)),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.edit, color: Color(0xFF878585), size: 18),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String? _validateIntField(String? value, String fieldName,
       {bool allowZero = true}) {
     if (value == null || value.isEmpty) return 'Please enter $fieldName';
     final number = int.tryParse(value);
     if (number == null) return 'Please enter a valid whole number';
-    if (!allowZero && number <= 0)
+    if (!allowZero && number <= 0) {
       return '$fieldName must be greater than zero';
+    }
     if (number < 0) return '$fieldName cannot be negative'; // General case
     return null;
   }
 
-  Widget _buildToggleRow(
-      {required String label,
-      required bool value,
-      required ValueChanged<bool> onChanged}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // Options for Bills Included Bottom Sheet
+  static const List<Map<String, dynamic>> _billOptions = [
+    {'label': 'Electricity', 'icon': Icons.flash_on, 'value': 'electricity'},
+    {'label': 'Water', 'icon': Icons.water_drop, 'value': 'water'},
+    {'label': 'Internet', 'icon': Icons.wifi, 'value': 'internet'},
+    {'label': 'LPG', 'icon': Icons.local_fire_department, 'value': 'lpg'},
+  ];
+
+  void _showBillsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select included bills:',
+                      style: TextStyle(fontSize: 16)),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: _billOptions.map((option) {
+                      bool isSelected =
+                          _selectedBills.contains(option['value']);
+                      return InkWell(
+                        onTap: () {
+                          setStateModal(() {
+                            if (isSelected) {
+                              _selectedBills.remove(option['value']);
+                            } else {
+                              _selectedBills.add(option['value']);
+                            }
+                          });
+                          setState(() {}); // Update parent widget state
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (option['value'] == 'water'
+                                    ? Colors.blue
+                                    : option['value'] == 'electricity'
+                                        ? Colors.amber
+                                        : option['value'] == 'internet'
+                                            ? Colors.indigo
+                                            : Colors.purple)
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(option['icon'],
+                                  color:
+                                      isSelected ? Colors.white : Colors.grey,
+                                  size: 18),
+                              const SizedBox(width: 8),
+                              Text(option['label'],
+                                  style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.black87)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showContractBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Important for TextFields
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                  left: 20,
+                  right: 20,
+                  top: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Contract Duration:',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  RadioListTile<bool>(
+                    title: const Text('With contract'),
+                    value: true,
+                    groupValue: _hasContract,
+                    onChanged: (value) =>
+                        setStateModal(() => _hasContract = value!),
+                  ),
+                  RadioListTile<bool>(
+                    title: const Text('Without contract'),
+                    value: false,
+                    groupValue: _hasContract,
+                    onChanged: (value) =>
+                        setStateModal(() => _hasContract = value!),
+                  ),
+                  if (_hasContract) ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _contractYearsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Duration (Years)',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => _validateIntField(
+                          value, 'contract years',
+                          allowZero: false),
+                      onChanged: (_) => setStateModal(
+                          () {}), // To update bottom sheet UI if needed
+                    ),
+                  ],
+                  const SizedBox(height: 20), // Padding at the bottom
+                  ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(_updateContractButtonText);
+                      },
+                      child: const Text("Done"))
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) => setState(
+        _updateContractButtonText)); // Update button text when sheet closes
+  }
+
+  // Helper to map enum to string for dropdown display
+  String _genderEnumToString(bedspace_model.GenderPreference gender) {
+    switch (gender) {
+      case bedspace_model.GenderPreference.any:
+        return 'Any Gender';
+      case bedspace_model.GenderPreference.maleOnly:
+        return 'Male Only';
+      case bedspace_model.GenderPreference.femaleOnly:
+        return 'Female Only';
+    }
+  }
+
+  // Helper to map string from dropdown back to enum
+  bedspace_model.GenderPreference _genderStringToEnum(String? genderString) {
+    if (genderString == 'Male Only') {
+      return bedspace_model.GenderPreference.maleOnly;
+    }
+    if (genderString == 'Female Only') {
+      return bedspace_model.GenderPreference.femaleOnly;
+    }
+    return bedspace_model.GenderPreference.any; // Default
+  }
+
+  Widget _buildApartmentDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.titleSmall),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          materialTapTargetSize:
-              MaterialTapTargetSize.shrinkWrap, // Reduce tap area slightly
+        _buildSectionLabel('Apartment Specifics'), // Changed label for clarity
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+                child: _buildTextField(_bedroomsController,
+                    labelText: 'Bedrooms',
+                    inputType: TextInputType.number,
+                    validator: (v) => _validateIntField(v, 'bedrooms'))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: _buildTextField(_bathroomsController,
+                    labelText: 'Bathrooms',
+                    inputType: TextInputType.number,
+                    validator: (v) => _validateIntField(v, 'bathrooms'))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: _buildTextField(_capacityController,
+                    labelText: 'Capacity',
+                    inputType: TextInputType.number,
+                    validator: (v) => _validateIntField(v, 'capacity'))),
+          ],
         ),
+        const SizedBox(height: 16), // Space after this section
       ],
     );
   }
 
-  Widget _buildFilterChip(String key, String label) {
-    final isSelected = _selectedBills.contains(key);
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          if (selected) {
-            _selectedBills.add(key);
-          } else {
-            _selectedBills.remove(key);
-          }
-        });
-      },
-      selectedColor: Theme.of(context).colorScheme.primaryContainer,
-      checkmarkColor: Theme.of(context).colorScheme.onPrimaryContainer,
+  Widget _buildBedspaceDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel('Bedspace Specifics'), // Changed label for clarity
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+                child: _buildTextField(_roommateCountController,
+                    labelText: 'Bedslots',
+                    inputType: TextInputType.number,
+                    validator: (v) => _validateIntField(v, 'bedslots'))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: _buildTextField(_bathroomShareCountController,
+                    labelText: 'Shared Bathrooms',
+                    inputType: TextInputType.number,
+                    validator: (v) =>
+                        _validateIntField(v, 'shared bathrooms'))),
+          ],
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: _selectedGenderString,
+          items: bedspace_model.GenderPreference.values
+              .map((bedspace_model.GenderPreference genderEnum) {
+            return DropdownMenuItem<String>(
+              value: _genderEnumToString(genderEnum),
+              child: Text(_genderEnumToString(genderEnum)),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _selectedGenderString = newValue;
+              });
+            }
+          },
+          decoration: InputDecoration(
+            labelText: 'Gender Preference',
+            labelStyle: const TextStyle(
+                color: Color(0xFF49454F),
+                fontSize: 12,
+                fontWeight: FontWeight.bold),
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.black, width: 1.0),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.black, width: 1.0),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.black, width: 1.0),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+          // No validator needed for dropdown unless you need to ensure a selection other than default
+        ),
+        const SizedBox(height: 16), // Space after this section
+      ],
     );
   }
+
+  // Helper extension for capitalizing first letter (if not already in a utility file)
 }

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'package:path/path.dart' as Path;
+import '../utils/owner_pending_verification_screen.dart'; // Import the new pending screen
 import '../Owner UI/owner_properties.dart'; // Import MyPropertyScreen
 
 class SignupOwnerScreen extends StatefulWidget {
@@ -167,8 +168,10 @@ class _SignupOwnerScreenState extends State<SignupOwnerScreen> {
               'sex': sex,
               'phone': phone,
               'facebook': facebook,
-              'validIdUrl': validIdUrl,
-              'proofOfOwnershipUrl': proofOfOwnershipUrl,
+              'validIdUrl': validIdUrl, // URL of the valid ID image
+              'proofOfOwnershipUrl':
+                  proofOfOwnershipUrl, // URL of the proof of ownership image
+              'accountStatus': 'pending_verification', // Initial status
               'accountType': 'owner',
               'email': email, // Storing email might be useful
             });
@@ -181,10 +184,11 @@ class _SignupOwnerScreenState extends State<SignupOwnerScreen> {
                 const SnackBar(
                     content: Text('Owner account created successfully!')),
               );
-              // Navigate to Owner Home Screen
+              // Navigate to Pending Verification Screen
               Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(
-                      builder: (context) => const MyPropertyScreen()),
+                      builder: (context) =>
+                          const OwnerPendingVerificationScreen()),
                   (Route<dynamic> route) => false);
             }
           } else {

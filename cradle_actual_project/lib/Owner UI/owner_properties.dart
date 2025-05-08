@@ -12,6 +12,11 @@ import '../Back-End/for_rent.dart';
 import '../Back-End/apartment.dart';
 import '../Back-End/bedspace.dart';
 import '../Back-End/listing_add_edit_fragment.dart';
+import '../Back-End/firestore_mapper.dart'; // Import the shared mapper
+import '../utils/owner_pending_verification_screen.dart'; // Import pending screen
+import 'owner_edit.dart'; // Import the enhanced owner_edit screen
+import 'owner_apartment_screen.dart'; // Import owner's apartment detail screen
+import 'owner_bedspacer_screen.dart'; // Import owner's bedspacer detail screen
 import '../utils/string_extensions.dart';
 
 void main() async {
@@ -183,6 +188,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
   // --- State for Listings ---
   Stream<QuerySnapshot>? _listingsStream;
   User? _currentUser;
+  String? _accountStatus; // To store the owner's account status
 
   @override
   void initState() {
@@ -191,13 +197,43 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     _loadUserInfo();
     _auth.authStateChanges().listen((user) {
       _currentUser = user; // Update current user reference
-      _loadUserInfo(); // Reload user info on auth state change
-      _setupListingsStream(); // Reset listings stream on auth change
-      if (mounted) {
-        setState(() {}); // Update UI on auth change
+      if (user != null) {
+        _fetchAccountStatusAndProceed();
+      } else {
+        // User logged out, clear status and stream
+        if (mounted) {
+          setState(() {
+            _accountStatus = null;
+            _listingsStream = null;
+          });
+        }
       }
+      _loadUserInfo(); // Still load general user info like name/type
     });
-    _setupListingsStream(); // Setup the stream to fetch properties
+    if (_currentUser != null) {
+      _fetchAccountStatusAndProceed();
+    }
+  }
+
+  Future<void> _fetchAccountStatusAndProceed() async {
+    if (_currentUser == null) return;
+    try {
+      DocumentSnapshot userDoc =
+          await _db.collection('users').doc(_currentUser!.uid).get();
+      if (mounted && userDoc.exists) {
+        setState(() {
+          _accountStatus = (userDoc.data()
+              as Map<String, dynamic>)['accountStatus'] as String?;
+        });
+        if (_accountStatus == 'verified') {
+          _setupListingsStream(); // Setup the stream to fetch properties only if verified
+        }
+      }
+    } catch (e) {
+      logger.e("Error fetching account status: $e");
+      if (mounted)
+        setState(() => _accountStatus = 'error'); // Handle error case
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -216,7 +252,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     if (_currentUser != null) {
       setState(() {
         _listingsStream = _db
-            .collection('listings')
+            .collection('listings') // Query by 'uid' field for owner's ID
             .where('uid', isEqualTo: _currentUser!.uid)
             .snapshots(); // Listen for real-time updates
       });
@@ -230,6 +266,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        // Navigate to the enhanced EditPropertyScreen
         builder: (context) => ListingAddEditScreen(
           isNew: isNew,
           docId: docId, // Pass docId if editing
@@ -241,11 +278,30 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        // Handle different account statuses
+        // This could also be done in a wrapper widget before navigating here
+        body: _currentUser == null
+            ? const Center(child: Text("Please log in."))
+            : _accountStatus == null // Still loading status
+                ? const Center(child: CircularProgressIndicator())
+                : _accountStatus == 'pending_verification'
+                    ? const OwnerPendingVerificationScreen() // Show pending screen
+                    : _accountStatus == 'verified'
+                        ? _buildVerifiedOwnerUI() // Show normal UI
+                        : Center(
+                            child: Text(
+                                "Account status: $_accountStatus. Please contact support.")));
+  }
+
+  Widget _buildVerifiedOwnerUI() {
+    // Extracted the main UI build logic
+    return Scaffold(
       key: _scaffoldKey,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          padding: const EdgeInsets.only(
+              top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFFECE6F0),
@@ -276,70 +332,115 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
         ),
       ),
       drawer: buildMenu(),
-      body: _currentUser == null
-          ? const Center(child: Text("Please log in to see your properties."))
-          : StreamBuilder<QuerySnapshot>(
-              stream: _listingsStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  logger.e("Listings StreamBuilder Error",
-                      error: snapshot.error, stackTrace: snapshot.stackTrace);
-                  return Center(
-                      child:
-                          Text('Error loading properties: ${snapshot.error}'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                      child: Text('You have not added any properties yet.'));
-                }
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _listingsStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            logger.e("Listings StreamBuilder Error",
+                error: snapshot.error, stackTrace: snapshot.stackTrace);
+            return Center(
+                child: Text('Error loading properties: ${snapshot.error}'));
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+                child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                  'You have not added any properties yet, or your properties are not yet visible.',
+                  textAlign: TextAlign.center),
+            ));
+          }
 
-                // Data is available
-                final documents = snapshot.data!.docs;
+          // Data is available
+          final documents = snapshot.data!.docs;
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: documents.length,
-                  itemBuilder: (context, index) {
-                    // Get data from document
-                    final listing =
-                        mapFirestoreDocumentToForRent(documents[index]);
-                    final String docId = documents[index].id;
-
-                    // If the listing has image URL, use it; otherwise use a placeholder
-                    String imageUrl = listing.imageFilename.isNotEmpty
-                        ? listing.imageFilename
-                        : 'https://th.bing.com/th/id/R.b2236b714cb9cbd93b43232361faf9ec?rik=dBDMY41CcAh9Tw&riu=http%3a%2f%2f1.bp.blogspot.com%2f-3RlvnNEnq7A%2fUex8jPr7CeI%2fAAAAAAAAALA%2fqRA7a6VQ35E%2fs1600%2fAPARTMENT_WHITE_PERSPECTIVE%2bfor%2bFB.jpg&ehk=lQpkY%2fsndCrVdccrKHJlr0RPyVl7EU4AWWuYyPMV%2bmk%3d&risl=&pid=ImgRaw&r=0';
-
-                    // Get property type string
-                    String propertyType =
-                        listing is Apartment ? 'Apartment' : 'Bedspace';
-
-                    // Return the property card
-                    return GestureDetector(
-                      onTap: () =>
-                          _navigateToAddEditScreen(isNew: false, docId: docId),
-                      onLongPress: () =>
-                          _showDeleteConfirmationDialog(listing.name, docId),
-                      child: PropertyCard(
-                        propertyName: listing.name.isNotEmpty
-                            ? listing.name
-                            : "Untitled Property",
-                        propertyType: propertyType,
-                        imageUrl: imageUrl,
-                        price: '₱${listing.price.toStringAsFixed(0)} / Month',
-                        contractDuration: '${listing.contract} month contract',
-                        description: listing.otherDetails.isNotEmpty
-                            ? listing.otherDetails
-                            : 'No description available.',
+          return ListView.builder(
+            itemCount: documents.length,
+            itemBuilder: (context, index) {
+              final DocumentSnapshot document = documents[index];
+              // Use FutureBuilder to handle the async mapping for each item
+              return FutureBuilder<ForRent>(
+                future: FirestoreMapper.mapDocumentToForRent(
+                    document), // Use shared mapper
+                builder: (context, itemSnapshot) {
+                  if (itemSnapshot.connectionState == ConnectionState.waiting) {
+                    // Optionally return a shimmer/placeholder while image URL is fetched
+                    // For simplicity, returning a sized box or a basic loading indicator
+                    return const Card(
+                      margin: EdgeInsets.all(16.0),
+                      child: SizedBox(
+                        height: 250, // Approximate height of PropertyCard
+                        child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2)),
                       ),
                     );
-                  },
-                );
-              },
-            ),
+                  }
+                  if (itemSnapshot.hasError) {
+                    logger.e(
+                        "Error mapping document ${document.id} for PropertyCard",
+                        error: itemSnapshot.error);
+                    return Card(
+                        child: ListTile(
+                            title: Text(
+                                "Error loading: ${document.id.substring(0, 5)}...")));
+                  }
+                  if (!itemSnapshot.hasData) {
+                    return const SizedBox
+                        .shrink(); // Should not happen if future completes without error
+                  }
+
+                  final ForRent listing = itemSnapshot.data!;
+                  final String docId = document.id;
+
+                  String imageUrl = (listing.imageDownloadUrl?.isNotEmpty ??
+                          false)
+                      ? listing.imageDownloadUrl!
+                      : 'https://via.placeholder.com/400x250?text=No+Image+Available'; // A more standard placeholder
+
+                  String propertyType =
+                      listing is Apartment ? 'Apartment' : 'Bedspace';
+
+                  return GestureDetector(
+                    // onTap will now navigate to the specific detail screen
+                    onTap: () {
+                      if (listing is Apartment) {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    ApartmentListing(listingId: docId)));
+                      } else if (listing is Bedspace) {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    BedspacerListing(listingId: docId)));
+                      }
+                    },
+                    onLongPress: () =>
+                        _showDeleteConfirmationDialog(listing.name, docId),
+                    child: PropertyCard(
+                      propertyName: listing.name.isNotEmpty
+                          ? listing.name
+                          : "Untitled Property",
+                      propertyType: propertyType,
+                      imageUrl: imageUrl,
+                      price: '₱${listing.price.toStringAsFixed(0)} / Month',
+                      contractDuration: '${listing.contract} month contract',
+                      description: listing.otherDetails.isNotEmpty
+                          ? listing.otherDetails
+                          : 'No description available.',
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -373,15 +474,6 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Profile (Not Implemented)')));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bookmark_border),
-              title: const Text("Bookmarks"),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Bookmarks (Not Implemented)')));
               },
             ),
             ListTile(
@@ -484,25 +576,5 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     }
   }
 
-  // --- Mapping Function ---
-  ForRent mapFirestoreDocumentToForRent(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>?;
-    if (data == null) {
-      throw Exception("Document data is null for doc ID: ${doc.id}");
-    }
-    final type = data['type'] as String?;
-    try {
-      if (type == 'apartment') {
-        return Apartment.fromJson(doc.id, data);
-      } else if (type == 'bedspace') {
-        return Bedspace.fromJson(doc.id, data);
-      } else {
-        logger.w("Unknown listing type '$type' for doc ID: ${doc.id}");
-        throw Exception("Unknown listing type: $type");
-      }
-    } catch (e) {
-      logger.e("Error parsing document ${doc.id}", error: e);
-      rethrow;
-    }
-  }
+  // Removed local mapFirestoreDocumentToForRent as we are using the one from firestore_mapper.dart
 }
