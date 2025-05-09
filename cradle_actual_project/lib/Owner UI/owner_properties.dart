@@ -14,7 +14,6 @@ import '../Back-End/bedspace.dart';
 import '../Back-End/listing_add_edit_fragment.dart';
 import '../Back-End/firestore_mapper.dart'; // Import the shared mapper
 import '../utils/owner_pending_verification_screen.dart'; // Import pending screen
-import 'owner_edit.dart'; // Import the enhanced owner_edit screen
 import 'owner_apartment_screen.dart'; // Import owner's apartment detail screen
 import 'owner_bedspacer_screen.dart'; // Import owner's bedspacer detail screen
 import '../utils/string_extensions.dart';
@@ -297,14 +296,18 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
     // Extracted the main UI build logic
     return Scaffold(
       key: _scaffoldKey,
+      backgroundColor: Colors.white, // Optional: ensure consistent background
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
+        preferredSize: const Size.fromHeight(70), // Matched RenterHomeScreen
         child: Padding(
           padding: const EdgeInsets.only(
-              top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
+              top: 48.0, // For status bar
+              bottom: 10.0,
+              left: 16.0,
+              right: 16.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFECE6F0),
+              color: const Color(0xFFFBEFFD), // Matched RenterHomeScreen
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),

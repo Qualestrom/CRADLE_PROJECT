@@ -979,6 +979,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
             .light, // For iOS, Brightness.light means light background, dark content
       ),
       child: Scaffold(
+        backgroundColor: Colors.white, // Set the background color to white
         key: _scaffoldKey,
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(70),
@@ -991,7 +992,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: const Color(
-                    0xFFFBEFFD), // FIXED: Using the color scheme from design
+                    0xFFFEF7FF), // FIXED: Using the color scheme from design
                 borderRadius: BorderRadius.circular(30),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1039,7 +1040,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
     final bool isBookmarked = _bookmarkedListingIds.contains(listing.uid);
     return Card(
       color:
-          const Color(0xFFFBEFFD), // FIXED: Using the color scheme from design
+          const Color(0xFFFEF7FF), // FIXED: Using the color scheme from design
       margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 5,
@@ -1095,12 +1096,12 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                                         : 'Listing'))
                                 .capitalizeFirstLetter(),
                             style: const TextStyle(
-                                fontSize: 12, color: Colors.grey)),
+                                fontSize: 12, color: Color(0xFF9E9E9E))),
                       ],
                     ),
                   ),
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.grey),
+                    icon: const Icon(Icons.more_vert, color: Color(0xFF6750A4)),
                     onSelected: (String result) {
                       if (result == 'report') {
                         _showReportDialog(listing);

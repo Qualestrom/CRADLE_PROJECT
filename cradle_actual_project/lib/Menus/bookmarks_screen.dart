@@ -127,31 +127,25 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   @override
   Widget build(BuildContext context) {
     if (_userId == null) {
-      return Scaffold(
-        appBar: AppBar(
-            title: const Text('My Bookmarks'),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white),
+      return _buildScaffoldWithCustomAppBar(
+        context: context,
+        title: 'My Bookmarks',
         body: const Center(child: Text('Please log in to see your bookmarks.')),
       );
     }
 
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-            title: const Text('My Bookmarks'),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white),
+      return _buildScaffoldWithCustomAppBar(
+        context: context,
+        title: 'My Bookmarks',
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_bookmarkedListings.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-            title: const Text('My Bookmarks'),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white),
+      return _buildScaffoldWithCustomAppBar(
+        context: context,
+        title: 'My Bookmarks',
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(16.0),
@@ -162,12 +156,9 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Bookmarks'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-      ),
+    return _buildScaffoldWithCustomAppBar(
+      context: context,
+      title: 'My Bookmarks',
       body: ListView.builder(
         padding: const EdgeInsets.all(8.0),
         itemCount: _bookmarkedListings.length,
@@ -219,4 +210,51 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       ),
     );
   }
+}
+
+// Helper to build Scaffold with the custom AppBar
+Widget _buildScaffoldWithCustomAppBar({
+  required BuildContext context,
+  required String title,
+  required Widget body,
+  List<Widget>? actions,
+}) {
+  return Scaffold(
+    backgroundColor: Colors.white,
+    appBar: PreferredSize(
+      preferredSize: const Size.fromHeight(70),
+      child: Padding(
+        padding: const EdgeInsets.only(
+            top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFBEFFD),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                  child: Center(
+                      child: Text(title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black87)))),
+              if (actions != null && actions.isNotEmpty)
+                ...actions
+              else
+                const SizedBox(
+                    width: 48), // Placeholder for alignment if no actions
+            ],
+          ),
+        ),
+      ),
+    ),
+    body: body,
+  );
 }

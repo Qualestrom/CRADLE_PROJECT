@@ -190,10 +190,42 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Reviews for ${widget.listingName}'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
+        automaticallyImplyLeading: false, // We're providing our own back button
+        elevation: 0,
+        toolbarHeight: 70, // Matches PreferredSize
+        backgroundColor: Colors.transparent, // Make standard AppBar transparent
+        flexibleSpace: Padding(
+          padding: const EdgeInsets.only(
+              top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFBEFFD), // Custom AppBar background
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text('Reviews for ${widget.listingName}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black87)),
+                  ),
+                ),
+                const SizedBox(
+                    width: 48), // Placeholder for alignment if no actions
+              ],
+            ),
+          ),
+        ),
       ),
       body: StreamBuilder<List<app_review.Review>>(
         stream: _reviewService.getReviewsForListing(widget.listingId),

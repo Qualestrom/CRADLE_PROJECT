@@ -295,14 +295,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text("Loading..."),
-              backgroundColor: const Color(0xFF6750A4),
-              foregroundColor: Colors.white,
-            ),
-            body: const Center(child: CircularProgressIndicator()),
-          );
+          return _buildLoadingScreen(context, "Loading...");
         }
         if (snapshot.hasError) {
           _logger.e(
@@ -345,10 +338,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
               .then((forRent) => forRent as Bedspace), // Cast to Bedspace
           builder: (context, bedspaceSnapshot) {
             if (bedspaceSnapshot.connectionState == ConnectionState.waiting) {
-              return Scaffold(
-                appBar: AppBar(title: const Text("Processing...")),
-                body: const Center(child: CircularProgressIndicator()),
-              );
+              return _buildLoadingScreen(context, "Processing...");
             }
             if (bedspaceSnapshot.hasError) {
               _logger.e(
@@ -914,4 +904,26 @@ Future<void> _launchUrlHelper(
       );
     }
   }
+}
+
+Widget _buildLoadingScreen(BuildContext context, String message) {
+  return Scaffold(
+    backgroundColor: Colors.white, // Or your desired background color
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+        ],
+      ),
+    ),
+  );
 }

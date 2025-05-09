@@ -312,15 +312,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Loading...'),
-              centerTitle: true,
-              backgroundColor: const Color(0xFF6750A4),
-              foregroundColor: Colors.white,
-            ),
-            body: const Center(child: CircularProgressIndicator()),
-          );
+          return _buildLoadingScreen(context, "Loading...");
         }
         if (snapshot.hasError) {
           _logger.e(
@@ -365,15 +357,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
               .then((forRent) => forRent as Apartment), // Cast to Apartment
           builder: (context, apartmentSnapshot) {
             if (apartmentSnapshot.connectionState == ConnectionState.waiting) {
-              return Scaffold(
-                appBar: AppBar(
-                  title: const Text('Processing...'),
-                  centerTitle: true,
-                  backgroundColor: const Color(0xFF6750A4),
-                  foregroundColor: Colors.white,
-                ),
-                body: const Center(child: CircularProgressIndicator()),
-              );
+              return _buildLoadingScreen(context, "Processing...");
             }
             if (apartmentSnapshot.hasError) {
               _logger.e(
@@ -910,4 +894,26 @@ Future<void> _launchUrlHelper(
       );
     }
   }
+}
+
+Widget _buildLoadingScreen(BuildContext context, String message) {
+  return Scaffold(
+    backgroundColor: Colors.white, // Or your desired background color
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+        ],
+      ),
+    ),
+  );
 }

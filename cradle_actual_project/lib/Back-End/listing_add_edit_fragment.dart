@@ -602,15 +602,67 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
     // REMOVED: _updateContractButtonText(); // This was causing setState in build
 
     return Scaffold(
+      backgroundColor: Colors.white, // Optional: ensure consistent background
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70), // Standard height
+        child: Padding(
+          padding: const EdgeInsets.only(
+              top: 48.0, // Standard top padding for status bar
+              bottom: 10.0,
+              left: 16.0,
+              right: 16.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFBEFFD), // New AppBar background color
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      widget.isNew ? "Add Property" : "Edit Property",
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                _isSaving
+                    ? const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.check, color: Colors.purple),
+                        onPressed: _saveData,
+                      ),
+              ],
+            ),
+          ),
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
+                padding: const EdgeInsets.only(
+                    top: 10,
+                    bottom: 20,
+                    left: 20,
+                    right: 20), // Adjusted top padding
                 children: [
-                  _buildCustomAppBar(),
-                  const SizedBox(height: 20),
                   _buildSectionLabel('Type'),
                   _buildPropertyTypeSelector(),
                   const SizedBox(height: 16),
@@ -781,49 +833,6 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
 
   // --- Helper Widgets ---
   // (Copied and adapted from owner_edit.dart)
-
-  Widget _buildCustomAppBar() {
-    return Container(
-      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFECE6F0),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black87),
-            onPressed: () => Navigator.pop(context),
-          ),
-          Expanded(
-            child: Center(
-              child: Text(
-                widget.isNew ? "Add Property" : "Edit Property",
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          _isSaving
-              ? const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2)),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.check, color: Colors.purple),
-                  onPressed: _saveData,
-                ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSectionLabel(String label) {
     return Container(
