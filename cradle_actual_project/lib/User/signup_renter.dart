@@ -22,6 +22,34 @@ class _SignupRenterScreenState extends State<SignupRenterScreen> {
   final _guardianPhoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController =
+      TextEditingController(); // For confirm password
+
+  bool _isPasswordObscured = true;
+  bool _isConfirmPasswordObscured = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listener to password controller to re-validate confirm password field
+    _passwordController.addListener(_onPasswordChanged);
+  }
+
+  @override
+  void dispose() {
+    // Remove listener and dispose all controllers
+    _passwordController.removeListener(_onPasswordChanged);
+    _nameController.dispose();
+    _ageController.dispose();
+    _phoneController.dispose();
+    _permanentAddressController.dispose();
+    _guardianNameController.dispose();
+    _guardianPhoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   // Validation Functions
   String? _validateName(String? value) {
@@ -99,11 +127,52 @@ class _SignupRenterScreenState extends State<SignupRenterScreen> {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    // Basic password validation (at least 8 characters)
+    // Password validation (at least 8 characters, alphanumeric)
     if (value.length < 8) {
       return 'Password must be at least 8 characters';
     }
+    // Check for at least one letter
+    if (!RegExp(r'[a-zA-Z]').hasMatch(value)) {
+      return 'Password must contain at least one letter';
+    }
+    // Check for at least one digit
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Password must contain at least one number';
+    }
     return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
+  }
+
+  void _onPasswordChanged() {
+    // If the confirm password field has text, trigger a rebuild.
+    // This will cause the Confirm Password TextFormField to re-validate
+    // due to AutovalidateMode.onUserInteraction.
+    if (_confirmPasswordController.text.isNotEmpty) {
+      setState(() {
+        // Form fields will be re-evaluated
+      });
+    }
+  }
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      _isPasswordObscured = !_isPasswordObscured;
+    });
+  }
+
+  void _toggleConfirmPasswordVisibility() {
+    setState(() {
+      _isConfirmPasswordObscured = !_isConfirmPasswordObscured;
+    });
   }
 
   void _submitForm() async {
@@ -204,15 +273,21 @@ class _SignupRenterScreenState extends State<SignupRenterScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.deepPurple[700],
         title: const Text('New Account'),
+        // titleSpacing: 4.0, // You can keep or adjust this based on overall preference for title spacing
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+        leading: Padding(
+          padding: const EdgeInsets.only(
+              left: 18.0), // Adjust this value to move the button more or less
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
         ),
         actions: [
           IconButton(
+            padding: const EdgeInsets.only(right: 24.0),
             icon: const Icon(Icons.check),
             onPressed: _submitForm,
           ),
@@ -345,9 +420,22 @@ class _SignupRenterScreenState extends State<SignupRenterScreen> {
                 labelText: 'Password', // Floating label
                 hintText: 'Enter your password',
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: _isPasswordObscured,
                 validator: _validatePassword,
+                onToggleObscurity: _togglePasswordVisibility,
                 labelColor: Colors.deepPurple, // Made label deepPurple
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                labelText: 'Confirm Password',
+                hintText: 'Re-enter your password',
+                controller: _confirmPasswordController,
+                obscureText: _isConfirmPasswordObscured,
+                validator: _validateConfirmPassword,
+                onToggleObscurity: _toggleConfirmPasswordVisibility,
+                labelColor: Colors.deepPurple,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
               ),
               const SizedBox(height: 32),
             ],
@@ -365,6 +453,8 @@ class _SignupRenterScreenState extends State<SignupRenterScreen> {
     bool obscureText = false,
     required String? Function(String?) validator,
     Color? labelColor, // Added labelColor parameter
+    AutovalidateMode? autovalidateMode, // Added autovalidateMode
+    VoidCallback? onToggleObscurity, // Added for password visibility toggle
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,14 +474,24 @@ class _SignupRenterScreenState extends State<SignupRenterScreen> {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             hintText: hintText,
             hintStyle: const TextStyle(color: Colors.grey),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                controller.clear();
-              },
-            ),
+            suffixIcon: onToggleObscurity != null
+                ? IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey[600],
+                    ),
+                    onPressed: onToggleObscurity,
+                  )
+                : (controller.text
+                        .isNotEmpty // Show clear button only if text is not empty and no toggle is present
+                    ? IconButton(
+                        icon: Icon(Icons.close, color: Colors.grey[600]),
+                        onPressed: () => controller.clear(),
+                      )
+                    : null),
           ),
           validator: validator,
+          autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
         ),
       ],
     );

@@ -177,7 +177,8 @@ class _ApartmentListingState extends State<ApartmentListing> {
               ),
             ],
           ),
-          _buildCallButton(apartmentData.contactNumber),
+          _buildContactOwnerButton(
+              context, apartmentData), // Pass context and full apartmentData
         ],
       ),
     );
@@ -185,33 +186,6 @@ class _ApartmentListingState extends State<ApartmentListing> {
 
   Widget _buildCallButton(String contactNumber) {
     return GestureDetector(
-      onTap: () async {
-        final Uri phoneLaunchUri = Uri(
-          scheme: 'tel',
-          path: contactNumber,
-        );
-        try {
-          if (await canLaunchUrl(phoneLaunchUri)) {
-            await launchUrl(phoneLaunchUri);
-          } else {
-            _logger.w('Could not launch $phoneLaunchUri');
-            if (mounted) {
-              // Check if widget is still in the tree
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Could not initiate phone call.')),
-              );
-            }
-          }
-        } catch (e) {
-          _logger.e('Error launching phone call', error: e);
-          if (mounted) {
-            // Check if widget is still in the tree
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error initiating phone call: $e')),
-            );
-          }
-        }
-      },
       child: Container(
         width: 50,
         height: 50,
@@ -220,12 +194,113 @@ class _ApartmentListingState extends State<ApartmentListing> {
           borderRadius: BorderRadius.circular(25),
         ),
         child: const Icon(
-          Icons.phone,
+          Icons.contact_phone_outlined, // Changed icon
           color: Color(0xFF6750A4),
           size: 24,
         ),
       ),
     );
+  }
+
+  Widget _buildContactOwnerButton(
+      BuildContext context, Apartment apartmentData) {
+    return GestureDetector(
+      onTap: () => _showContactOptionsDialog(
+          context,
+          apartmentData.ownerId ?? '',
+          apartmentData.contactPerson), // Use apartmentData.ownerId
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEADDFF),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: const Icon(
+          Icons.contact_phone_outlined,
+          color: Color(0xFF6750A4),
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showContactOptionsDialog(
+      BuildContext context, String ownerId, String ownerName) async {
+    // Optional: Show loading indicator
+    // showDialog(context: context, builder: (context) => Center(child: CircularProgressIndicator()));
+
+    try {
+      DocumentSnapshot ownerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(ownerId)
+          .get();
+      // if (context.mounted) Navigator.pop(context); // Dismiss loading indicator
+
+      if (ownerDoc.exists) {
+        final data = ownerDoc.data() as Map<String, dynamic>?;
+        final String? ownerPhone = data?['phone'] as String?;
+        final String? ownerFacebookLink = data?['facebook'] as String?;
+
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (BuildContext dialogContext) {
+              List<Widget> actions = [];
+              if (ownerPhone != null && ownerPhone.isNotEmpty) {
+                actions.add(ListTile(
+                  leading: const Icon(Icons.phone, color: Color(0xFF6750A4)),
+                  title: Text('Call $ownerName'),
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    _launchUrlHelper(
+                        context, Uri(scheme: 'tel', path: ownerPhone), _logger);
+                  },
+                ));
+              }
+              if (ownerFacebookLink != null && ownerFacebookLink.isNotEmpty) {
+                actions.add(ListTile(
+                  leading: const Icon(Icons.facebook, color: Color(0xFF6750A4)),
+                  title: Text('Message $ownerName on Facebook'),
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    _launchUrlHelper(
+                        context, Uri.parse(ownerFacebookLink), _logger);
+                  },
+                ));
+              }
+
+              return AlertDialog(
+                title: Text(
+                    'Contact ${ownerName.isNotEmpty ? ownerName : "Owner"}'),
+                content: SingleChildScrollView(
+                  child: ListBody(
+                      children: actions.isNotEmpty
+                          ? actions
+                          : [const Text("No contact information available.")]),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                      child: const Text('Close'),
+                      onPressed: () => Navigator.of(dialogContext).pop()),
+                ],
+              );
+            },
+          );
+        }
+      } else {
+        _logger.w("Owner document not found for ID: $ownerId");
+        if (context.mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Owner details not found.')));
+      }
+    } catch (e) {
+      _logger.e("Error fetching owner details for ID: $ownerId", error: e);
+      // if (context.mounted) Navigator.pop(context); // Dismiss loading indicator
+      if (context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error fetching contact details.')));
+    }
   }
 
   @override
@@ -810,5 +885,29 @@ class _ApartmentListingState extends State<ApartmentListing> {
         ); // End of FutureBuilder
       }, // End of StreamBuilder builder
     );
+  }
+}
+
+// Helper function (can be moved to a utility file if not already defined in this file from previous step)
+Future<void> _launchUrlHelper(
+    BuildContext context, Uri url, Logger logger) async {
+  try {
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      logger.w('Could not launch $url');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open ${url.scheme} link.')),
+        );
+      }
+    }
+  } catch (e) {
+    logger.e('Error launching URL $url', error: e);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening link: $e')),
+      );
+    }
   }
 }

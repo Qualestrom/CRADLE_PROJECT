@@ -78,6 +78,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
   // --- Bookmark State ---
   Set<String> _bookmarkedListingIds = {};
   StreamSubscription? _bookmarksSubscription;
+  StreamSubscription<User?>? _authSubscription; // For auth state changes
   bool _isConnected = true; // Assume connected initially
 
   @override
@@ -91,8 +92,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
     // --- End Connectivity Check ---
-
-    _auth.authStateChanges().listen((user) {
+    // Listen to auth state changes
+    _authSubscription = _auth.authStateChanges().listen((user) {
       _loadUserInfo(); // Reload user info on auth state change
       // Listen to bookmarks if user is logged in, otherwise clear
       if (mounted) {
@@ -116,6 +117,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
   @override
   void dispose() {
     _connectivitySubscription?.cancel(); // Cancel listener
+    _bookmarksSubscription?.cancel();
+    _authSubscription?.cancel(); // Cancel auth state listener
     super.dispose();
   }
 
@@ -300,11 +303,76 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
 
   Future<void> _loadUserInfo() async {
     if (!mounted) return;
+    logger.i("Attempting to load user info...");
+
     final prefs = await SharedPreferences.getInstance();
+    // Try to load from SharedPreferences first
+    String? prefFullName = prefs.getString(
+        "fullName"); // Use "fullName" key for SharedPreferences cache
+    String? prefAccountType = prefs.getString("accountType");
+
+    logger.i(
+        "From SharedPreferences: fullName='$prefFullName', accountType='$prefAccountType'");
+
+    User? currentUser = _auth.currentUser;
+    logger.i("Current Firebase user: ${currentUser?.uid ?? 'null'}");
+
+    // If user is logged in but info is missing from SharedPreferences, fetch from Firestore
+    if (currentUser != null) {
+      if (prefFullName == null || prefAccountType == null) {
+        logger.i(
+            "Full name or account type missing from SharedPreferences, attempting to fetch from Firestore for UID: ${currentUser.uid}");
+        try {
+          DocumentSnapshot userDoc =
+              await _db.collection('users').doc(currentUser.uid).get();
+          if (userDoc.exists) {
+            logger.i("Firestore document found for UID: ${currentUser.uid}");
+            final data = userDoc.data() as Map<String, dynamic>?;
+
+            if (data != null) {
+              // Fetch 'name' from Firestore (signup_renter saves it as 'name')
+              if (prefFullName == null && data.containsKey('name')) {
+                prefFullName = data['name'] as String?;
+                logger.i("Name from Firestore: '$prefFullName'");
+                if (prefFullName != null) {
+                  // Save to SharedPreferences using "fullName" key for caching
+                  await prefs.setString("fullName", prefFullName);
+                  logger.i(
+                      "Saved '$prefFullName' to SharedPreferences for key 'fullName'");
+                }
+              }
+              // Fetch 'accountType' from Firestore
+              if (prefAccountType == null && data.containsKey('accountType')) {
+                prefAccountType = data['accountType'] as String?;
+                logger.i("AccountType from Firestore: '$prefAccountType'");
+                if (prefAccountType != null) {
+                  await prefs.setString("accountType", prefAccountType);
+                  logger.i(
+                      "Saved '$prefAccountType' to SharedPreferences for key 'accountType'");
+                }
+              }
+            } else {
+              logger.w(
+                  "Firestore document data is null for UID: ${currentUser.uid}");
+            }
+          } else {
+            logger.w("No Firestore document found for UID: ${currentUser.uid}");
+          }
+        } catch (e, s) {
+          logger.e(
+              "Error fetching user info from Firestore for UID: ${currentUser.uid}",
+              error: e,
+              stackTrace: s);
+        }
+      }
+    }
+
     if (mounted) {
+      logger.i(
+          "Setting state with fullName='$prefFullName', accountType='$prefAccountType'");
       setState(() {
-        _accountType = prefs.getString("accountType");
-        _fullName = prefs.getString("fullName");
+        _fullName = prefFullName; // Update the state variable
+        _accountType = prefAccountType; // Update the state variable
       });
     }
   }
@@ -753,12 +821,19 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
 
   // --- Report Listing Methods ---
   void _showReportDialog(ForRent listing) {
+    if (!mounted) {
+      logger.w(
+          "Attempted to show report dialog on a disposed widget for listing: ${listing.name}");
+      return;
+    }
+
     final reportReasonController = TextEditingController();
     final formKey = GlobalKey<FormState>(); // For validating the reason
 
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
+        // Use dialogContext for operations within the dialog
         return AlertDialog(
           title: const Text('Report Listing'),
           content: Form(
@@ -797,6 +872,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
               child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
+                reportReasonController
+                    .dispose(); // Dispose controller when dialog is dismissed
               },
             ),
             ElevatedButton(
@@ -804,7 +881,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
               onPressed: () {
                 if (formKey.currentState!.validate()) {
                   _submitReport(listing, reportReasonController.text.trim());
-                  Navigator.of(dialogContext).pop(); // Close the dialog
+                  Navigator.of(dialogContext).pop(); // Close the dialog first
+                  reportReasonController.dispose(); // Then dispose controller
                 }
               },
             ),
@@ -812,22 +890,29 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
         );
       },
     );
+    // Note: reportReasonController is created within this method's scope.
+    // It will be disposed when the dialog is dismissed or when this method completes if the dialog isn't shown.
+    // However, explicitly disposing it in the dialog's dismiss actions is safer.
   }
 
   Future<void> _submitReport(ForRent listing, String reason) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('You must be logged in to submit a report.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('You must be logged in to submit a report.')),
+        );
+      }
       return;
     }
     if (!_isConnected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('No internet connection. Please try again later.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('No internet connection. Please try again later.')),
+        );
+      }
       return;
     }
 
@@ -842,17 +927,21 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'pending_review', // Initial status of the report
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Report submitted successfully. Thank you!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Report submitted successfully. Thank you!')),
+        );
+      }
       logger.i(
           "Report submitted for listing ${listing.uid} by user ${currentUser.uid}");
     } catch (e, s) {
       logger.e('Error submitting report', error: e, stackTrace: s);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit report: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit report: ${e.toString()}')),
+        );
+      }
     }
   }
   // --- End Report Listing Methods ---
@@ -877,70 +966,71 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Set the system UI overlay style for the status bar
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      // Status bar color for Android. For a seamless look with your AppBar,
-      // you might want it transparent or matching your AppBar's background.
-      statusBarColor: Colors.transparent, // Or match your AppBar background
-      // Status bar icon brightness (Android). Brightness.dark means dark icons.
-      statusBarIconBrightness: Brightness.dark,
-      // Status bar brightness (iOS). Brightness.dark means dark content (icons/text).
-      statusBarBrightness: Brightness
-          .light, // For iOS, Brightness.light means light background, dark content
-    ));
-
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: Padding(
-          padding: const EdgeInsets.only(
-              top: 48.0,
-              bottom: 10.0,
-              left: 16.0,
-              right: 16.0), // Increased top padding
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(
-                  0xFFFBEFFD), // FIXED: Using the color scheme from design
-              borderRadius: BorderRadius.circular(30),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.menu, color: Colors.black87),
-                  onPressed: () {
-                    _scaffoldKey.currentState?.openDrawer();
-                  },
-                ),
-                const Text(
-                  'Home',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.black87),
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.filter_alt_outlined,
-                    color: _activeFilters.isFiltering
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.black87, // Highlight if filters active
+    // Using AnnotatedRegion for better control over system UI overlay
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        // Status bar color for Android. For a seamless look with your AppBar,
+        // you might want it transparent or matching your AppBar's background.
+        statusBarColor: Colors.transparent, // Or match your AppBar background
+        // Status bar icon brightness (Android). Brightness.dark means dark icons.
+        statusBarIconBrightness: Brightness.dark,
+        // Status bar brightness (iOS). Brightness.dark means dark content (icons/text).
+        statusBarBrightness: Brightness
+            .light, // For iOS, Brightness.light means light background, dark content
+      ),
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(70),
+          child: Padding(
+            padding: const EdgeInsets.only(
+                top: 48.0,
+                bottom: 10.0,
+                left: 16.0,
+                right: 16.0), // Increased top padding
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(
+                    0xFFFBEFFD), // FIXED: Using the color scheme from design
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.black87),
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
                   ),
-                  onPressed: _openFilterSheet,
-                ),
-              ],
+                  const Text(
+                    'Home',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.black87),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.filter_alt_outlined,
+                      color: _activeFilters.isFiltering
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.black87, // Highlight if filters active
+                    ),
+                    onPressed: _openFilterSheet,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        drawer: _buildMenu(),
+        body: _isConnected
+            ? RefreshIndicator(
+                onRefresh: _handleRefresh, child: _buildListingStream())
+            : _buildOfflineMessage(), // Switch body based on connectivity
       ),
-      drawer: _buildMenu(),
-      body: _isConnected
-          ? RefreshIndicator(
-              onRefresh: _handleRefresh, child: _buildListingStream())
-          : _buildOfflineMessage(), // Switch body based on connectivity
     );
   }
 
