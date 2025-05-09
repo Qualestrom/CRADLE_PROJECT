@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../Menus/reviews_screen.dart'; // Import the new ReviewsScreen
 
 const double _kBottomBarHeight = 120.0; // Height of the bottom price bar
+const double _kTopBarHeight = 8.0; // Or your desired new height
 
 class BedspacerListing extends StatefulWidget {
   final String listingId;
@@ -110,7 +111,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Column(
@@ -309,14 +310,30 @@ class _BedspacerListingState extends State<BedspacerListing> {
                     fit: StackFit.expand,
                     // Use Stack for overlaying back button
                     children: [
+                      // New White Container for Notification Back
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: MediaQuery.of(context).padding.top +
+                              _kTopBarHeight, // Covers status bar + toolbar area
+                          color: Colors.white,
+                          // You could add a bottom border if desired:
+                          // decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+                        ),
+                      ),
                       SingleChildScrollView(
                         padding: const EdgeInsets.only(
                             bottom:
                                 _kBottomBarHeight), // Padding for the bottom bar
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          // Add top padding to push content below the new white bar
                           children: [
-                            // Image container - now at the very top of the scroll content
+                            SizedBox(
+                                height: MediaQuery.of(context).padding.top +
+                                    _kTopBarHeight),
                             Container(
                               width: double.infinity,
                               height: 300, // Adjust height as desired
@@ -721,7 +738,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
                       // Positioned Back Button
                       Positioned(
                         top: MediaQuery.of(context).padding.top +
-                            8, // Status bar padding + extra
+                            32, // Status bar padding + extra
                         left: 16,
                         child: Material(
                           color: Colors

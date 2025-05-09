@@ -7,6 +7,7 @@ import '../Back-End/firestore_mapper.dart'; // Import FirestoreMapper
 import '../Menus/reviews_screen.dart'; // Import the new ReviewsScreen
 
 const double _kBottomBarHeight = 120.0; // Height of the bottom price bar
+const double _kTopBarHeight = 8.0; // Or your desired new height
 
 class ApartmentListing extends StatefulWidget {
   final String listingId; // Added to receive the apartment ID
@@ -339,13 +340,31 @@ class _ApartmentListingState extends State<ApartmentListing> {
                     fit: StackFit.expand,
                     // Use Stack for overlaying back button
                     children: [
+                      // New White Container for Notification Back
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: MediaQuery.of(context).padding.top +
+                              _kTopBarHeight, // Covers status bar + toolbar area
+                          color: Colors.white,
+                          // You could add a bottom border if desired:
+                          // decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+                        ),
+                      ),
                       SingleChildScrollView(
                         padding: const EdgeInsets.only(
                             bottom:
                                 _kBottomBarHeight), // Padding for the bottom bar
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          // Add top padding to push content below the new white bar
+                          // THIS SizedBox pushes all content within the SingleChildScrollView down
                           children: [
+                            SizedBox(
+                                height: MediaQuery.of(context).padding.top +
+                                    _kTopBarHeight),
                             Container(
                               width: double.infinity,
                               height: 300,
@@ -755,8 +774,8 @@ class _ApartmentListingState extends State<ApartmentListing> {
                       // Positioned Back Button
                       Positioned(
                         top: MediaQuery.of(context).padding.top +
-                            8, // Status bar padding + extra
-                        left: 8,
+                            32, // Status bar padding + extra
+                        left: 16,
                         child: Material(
                           color: Colors
                               .transparent, // Ensures InkWell splash is visible on transparent bg

@@ -11,6 +11,7 @@ import '../utils/string_extensions.dart'; // Assuming you have this extension fo
 
 import 'apartment.dart'; // Assuming you have these models defined
 import 'bedspace.dart' as bedspace_model; // Alias to avoid conflict
+import 'for_rent.dart'; // Assuming this is the base class for both models
 // --- Data Models (Assuming similar structure to your Java models) ---
 // You'll need to define these based on your exact Firestore structure
 // Add toJson methods for saving data
@@ -147,21 +148,22 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         // Get the 'type' field from Firestore, it might be null or have different casing.
         final String? typeStringFromDb = data['type'] as String?;
 
-        dynamic forRent; // This will hold the Apartment or Bedspace object
+        ForRent forRentTyped; // Use a statically typed variable
 
         // Determine the type and create the corresponding object
         // Use toLowerCase() for case-insensitive comparison.
         if (typeStringFromDb?.toLowerCase() == 'apartment') {
           _selectedType = PropertyType.apartment;
-          forRent = Apartment.fromJson(docSnapshot.id, data);
-          final apartment = forRent as Apartment;
+          final apartment = Apartment.fromJson(docSnapshot.id, data);
+          forRentTyped = apartment;
           _bedroomsController.text = apartment.noOfBedrooms.toString();
           _bathroomsController.text = apartment.noOfBathrooms.toString();
           _capacityController.text = apartment.capacity.toString();
         } else if (typeStringFromDb?.toLowerCase() == 'bedspace') {
           _selectedType = PropertyType.bedspace;
-          forRent = bedspace_model.Bedspace.fromJson(docSnapshot.id, data);
-          final bedspace = forRent as bedspace_model.Bedspace;
+          final bedspace =
+              bedspace_model.Bedspace.fromJson(docSnapshot.id, data);
+          forRentTyped = bedspace;
           _roommateCountController.text = bedspace.roommateCount.toString();
           _bathroomShareCountController.text =
               bedspace.bathroomShareCount.toString();
@@ -175,9 +177,9 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
             logger.w(
                 "Listing type field is missing for document ${widget.docId}. Defaulting to 'apartment'.");
             _selectedType = PropertyType.apartment;
-            forRent = Apartment.fromJson(docSnapshot.id, data);
+            final apartment = Apartment.fromJson(docSnapshot.id, data);
+            forRentTyped = apartment;
             // Attempt to populate apartment specific fields; they will use defaults from the model if fields are missing in data.
-            final apartment = forRent as Apartment;
             _bedroomsController.text = apartment.noOfBedrooms.toString();
             _bathroomsController.text = apartment.noOfBathrooms.toString();
             _capacityController.text = apartment.capacity.toString();
@@ -200,16 +202,16 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         }
 
         // Populate common fields
-        _nameController.text = forRent.name;
-        _contactPersonController.text = forRent.contactPerson;
-        _contactNumberController.text = forRent.contactNumber;
-        _addressController.text = forRent.address;
-        _priceController.text =
-            forRent.price.toStringAsFixed(0); // Adjust formatting as needed
-        _otherDetailsController.text = forRent.otherDetails;
+        _nameController.text = forRentTyped.name;
+        _contactPersonController.text = forRentTyped.contactPerson;
+        _contactNumberController.text = forRentTyped.contactNumber;
+        _addressController.text = forRentTyped.address;
+        _priceController.text = forRentTyped.price
+            .toStringAsFixed(0); // Adjust formatting as needed
+        _otherDetailsController.text = forRentTyped.otherDetails;
 
         // Image
-        _imageFilename = forRent.imageFilename;
+        _imageFilename = forRentTyped.imageFilename;
         if (_imageFilename != null && _imageFilename!.isNotEmpty) {
           String pathInStorage = ''; // Initialize pathInStorage
           try {
@@ -250,16 +252,16 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
 
         // Bills Included
         _selectedBills.clear(); // Clear before populating
-        if (forRent.billsIncluded.isNotEmpty) {
+        if (forRentTyped.billsIncluded.isNotEmpty) {
           _selectedBills
-              .addAll(forRent.billsIncluded.map((b) => b.toLowerCase()));
+              .addAll(forRentTyped.billsIncluded.map((b) => b.toLowerCase()));
         }
 
         // Curfew
-        if (forRent.curfew != null && forRent.curfew!.isNotEmpty) {
+        if (forRentTyped.curfew != null && forRentTyped.curfew!.isNotEmpty) {
           _hasCurfew = true;
           try {
-            final parts = forRent.curfew!.split(' - ');
+            final parts = forRentTyped.curfew!.split(' - ');
             if (parts.length == 2) {
               // Attempt to parse using the expected format
               final fromFormat = DateFormat('h:mm a');
@@ -270,13 +272,13 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
               _curfewToTime = TimeOfDay.fromDateTime(toDateTime);
             } else {
               logger.w(
-                  "Error parsing curfew string: Invalid format '${forRent.curfew}' for doc ${widget.docId}");
+                  "Error parsing curfew string: Invalid format '${forRentTyped.curfew}' for doc ${widget.docId}");
               _hasCurfew = false; // Reset if format is wrong
             }
           } catch (e, s) {
             _hasCurfew = false; // Reset on parsing error
             logger.e(
-                "Error parsing curfew time from string '${forRent.curfew}'",
+                "Error parsing curfew time from string '${forRentTyped.curfew}'",
                 error: e,
                 stackTrace: s);
           }
@@ -286,9 +288,9 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         _updateCurfewButtonText(); // Update button text after parsing or defaulting
 
         // Contract
-        if (forRent.contract > 0) {
+        if (forRentTyped.contract > 0) {
           _hasContract = true;
-          _contractYearsController.text = forRent.contract.toString();
+          _contractYearsController.text = forRentTyped.contract.toString();
           _selectedContractUnit = 'Year/s'; // Assuming years from model
         } else {
           _hasContract = false;
