@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-//import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Added for account type fetching
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import '../Back-End/review.dart' as app_review;
 import '../utils/review_service.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // For SharedPreferences
 
 class ReviewsScreen extends StatefulWidget {
   final String listingId;
@@ -17,13 +18,56 @@ class ReviewsScreen extends StatefulWidget {
   State<ReviewsScreen> createState() => _ReviewsScreenState();
 }
 
+final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
 class _ReviewsScreenState extends State<ReviewsScreen> {
   final ReviewService _reviewService = ReviewService();
   final Logger _logger = Logger('ReviewsScreen');
   double _currentRating = 0; // For the "Add Review" dialog
   final _commentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoadingAccountType = true;
+  String? _currentUserAccountType;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentUserAccountType();
+  }
+
+  Future<void> _fetchCurrentUserAccountType() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isLoadingAccountType = false);
+      return;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? accountType = prefs.getString('accountType');
+
+      if (accountType == null) {
+        // Fallback to Firestore if not in SharedPreferences
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          accountType = (userDoc.data() as Map<String, dynamic>)['accountType']
+              as String?;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _currentUserAccountType = accountType;
+          _isLoadingAccountType = false;
+        });
+      }
+    } catch (e) {
+      _logger.severe("Error fetching current user account type", e);
+      if (mounted) setState(() => _isLoadingAccountType = false);
+    }
+  }
 
   Future<void> _showAddReviewDialog() async {
     _currentRating = 0; // Reset rating for new dialog
@@ -189,19 +233,23 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Using AnnotatedRegion for better control over system UI overlay
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        automaticallyImplyLeading: false, // We're providing our own back button
-        elevation: 0,
-        toolbarHeight: 70, // Matches PreferredSize
-        backgroundColor: Colors.transparent, // Make standard AppBar transparent
-        flexibleSpace: Padding(
+      // backgroundColor: Colors.white, // This is already handled by the theme or Scaffold default
+      backgroundColor: Colors.white, // Set the background color to white
+      key: _scaffoldKey,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Padding(
           padding: const EdgeInsets.only(
-              top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
+              top: 48.0,
+              bottom: 10.0,
+              left: 16.0,
+              right: 16.0), // Increased top padding
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF7FF), // Custom AppBar background
+              color: const Color(
+                  0xFFFEF7FF), // FIXED: Using the color scheme from design
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -332,13 +380,17 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddReviewDialog,
-        icon: const Icon(Icons.add_comment_outlined),
-        label: const Text('Add Review'),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        foregroundColor: Theme.of(context).colorScheme.onSecondary,
-      ),
+      floatingActionButton: _isLoadingAccountType
+          ? null // Don't show FAB while loading account type
+          : (_currentUserAccountType == 'renter'
+              ? FloatingActionButton.extended(
+                  onPressed: _showAddReviewDialog,
+                  icon: const Icon(Icons.add_comment_outlined),
+                  label: const Text('Add Review'),
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                )
+              : null), // Don't show FAB if not a renter or type is unknown
     );
   }
 

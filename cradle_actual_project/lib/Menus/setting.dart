@@ -1,93 +1,19 @@
 // Front-End Developer: Ana Marie Ramos
 
 import 'package:flutter/material.dart';
-
-void main() {
-  runApp(CradleApp());
-}
-
-class CradleApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cradle',
-      theme: ThemeData(
-        primaryColor: Color(0xFF6B5B95),
-        scaffoldBackgroundColor: Color(0xFFF2ECF8),
-        fontFamily: 'Roboto',
-        appBarTheme: AppBarTheme(
-          backgroundColor: Color(0xFF6B5B95),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-      ),
-      home: HomePage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: AppDrawer(),
-      appBar: AppBar(
-        title: Text('CRADLE'),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Text(
-          'Welcome to Cradle!',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
-}
-
-class AppDrawer extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: Container(
-        color: Color(0xFFF2ECF8),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xFF6B5B95),
-              ),
-              child: Image.asset('assets/logo.png'),
-            ),
-            ListTile(
-              leading: Icon(Icons.settings),
-              title: Text('Settings'),
-              onTap: () {
-                Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => SettingsPage()));
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.logout),
-              title: Text('Logout'),
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+import 'package:firebase_auth/firebase_auth.dart'; // Import FirebaseAuth
+import '../User/settle_now.dart'; // For WelcomeScreen after logout
+import 'package:shared_preferences/shared_preferences.dart'; // For clearing prefs on logout
 
 class SettingsPage extends StatefulWidget {
   @override
   _SettingsPageState createState() => _SettingsPageState();
 }
 
+final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
 class _SettingsPageState extends State<SettingsPage> {
-  bool _notificationsOn = true;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   void navigateToPlaceholder(BuildContext context, String title) {
     Navigator.push(
@@ -98,85 +24,125 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Using AnnotatedRegion for better control over system UI overlay
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Settings'),
+      // backgroundColor: Colors.white, // This is already handled by the theme or Scaffold default
+      backgroundColor: Colors.white, // Set the background color to white
+      key: _scaffoldKey,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Padding(
+          padding: const EdgeInsets.only(
+              top: 48.0,
+              bottom: 10.0,
+              left: 16.0,
+              right: 16.0), // Increased top padding
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(
+                  0xFFFEF7FF), // FIXED: Using the color scheme from design
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                const Expanded(
+                  child: Center(
+                    child: Text('Settings',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black87)),
+                  ),
+                ),
+                const SizedBox(
+                    width: 48), // Placeholder for alignment if no actions
+              ],
+            ),
+          ),
+        ),
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Color(0xFFE8E1F0),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.notifications_none, color: Colors.black54),
-                    SizedBox(width: 12),
-                    Text('Notification', style: TextStyle(fontSize: 16)),
-                  ],
-                ),
-                Switch(
-                  value: _notificationsOn,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _notificationsOn = value;
-                    });
-                  },
-                  activeColor: Color(0xFF6B5B95),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20),
+          // Removed Notification Container
+          // Removed SizedBox(height: 20)
           ListTile(
             leading: Icon(Icons.star_border),
             title: Text('Rate App'),
             onTap: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (_) => ReviewsPage()));
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Rate App (Placeholder)')),
+              );
             },
           ),
           ListTile(
             leading: Icon(Icons.share),
             title: Text('Share App'),
-            onTap: () => navigateToPlaceholder(context, 'Share App'),
+            onTap: () {
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Share App (Placeholder)')),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.privacy_tip_outlined),
             title: Text('Privacy Policy'),
-            onTap: () => navigateToPlaceholder(context, 'Privacy Policy'),
+            onTap: () {
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Privacy Policy (Placeholder)')),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Terms and Conditions'),
-            onTap: () => navigateToPlaceholder(context, 'Terms and Conditions'),
+            onTap: () {
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Terms and Conditions (Placeholder)')),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.cookie_outlined),
             title: Text('Cookies Policy'),
-            onTap: () => navigateToPlaceholder(context, 'Cookies Policy'),
+            onTap: () {
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Cookies Policy (Placeholder)')),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.contact_mail_outlined),
             title: Text('Contact'),
-            onTap: () => navigateToPlaceholder(context, 'Contact'),
+            onTap: () {
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Contact (Placeholder)')),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.feedback_outlined),
             title: Text('Feedback'),
-            onTap: () => navigateToPlaceholder(context, 'Feedback'),
+            onTap: () {
+              // Decoy action: Show SnackBar instead of navigating
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Feedback (Placeholder)')),
+              );
+            },
           ),
-          ListTile(
-            leading: Icon(Icons.logout),
-            title: Text('Logout'),
-            onTap: () => navigateToPlaceholder(context, 'Logged Out'),
-          ),
+          // Removed Logout ListTile
         ],
       ),
     );
@@ -190,7 +156,42 @@ class PlaceholderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        toolbarHeight: 70,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Padding(
+          padding: const EdgeInsets.only(
+              top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFBEFFD),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black87)),
+                  ),
+                ),
+                const SizedBox(width: 48), // Placeholder
+              ],
+            ),
+          ),
+        ),
+      ),
       body: Center(
         child: Text(
           '$title Page (Placeholder)',
@@ -220,7 +221,8 @@ class ReviewsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF5EDF8),
+      // Use theme-aware background color
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -230,7 +232,8 @@ class ReviewsPage extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade100,
+                  // Use theme-aware color
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: Row(
@@ -245,6 +248,9 @@ class ReviewsPage extends StatelessWidget {
                           'Reviews',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
                             fontSize: 16,
                           ),
                         ),
@@ -270,10 +276,15 @@ class ReviewsPage extends StatelessWidget {
                   Row(
                     children: List.generate(5, (index) {
                       if (index == 3) {
-                        return Icon(Icons.star, color: Colors.purple, size: 24);
+                        // Use theme color for stars
+                        return Icon(Icons.star,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 24);
                       } else {
                         return Icon(Icons.star_border,
-                            color: Colors.grey, size: 24);
+                            // Use a less prominent theme color or grey
+                            color: Theme.of(context).colorScheme.outline,
+                            size: 24);
                       }
                     }),
                   ),
