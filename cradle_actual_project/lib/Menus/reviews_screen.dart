@@ -61,7 +61,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             index < _currentRating
                                 ? Icons.star
                                 : Icons.star_border,
-                            color: Colors.amber,
+                            color: const Color(0xFF4F378B),
                             size: 30,
                           ),
                           onPressed: () {
@@ -180,7 +180,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     for (int i = 0; i < 5; i++) {
       stars.add(Icon(
         i < rating ? Icons.star : Icons.star_border,
-        color: Colors.amber,
+        color: const Color(0xFF4F378B),
         size: size,
       ));
     }
@@ -201,7 +201,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFFBEFFD), // Custom AppBar background
+              color: const Color(0xFFFEF7FF), // Custom AppBar background
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -213,7 +213,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('Reviews for ${widget.listingName}',
+                    child: Text('Property Reviews',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -239,12 +239,21 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
+            return Center(
                 child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('No reviews yet. Be the first to add one!',
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
-            ));
+                    padding: EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.rate_review_outlined,
+                            size: 60, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text('No reviews yet. Be the first to add one!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.grey[700])),
+                      ],
+                    )));
           }
 
           final reviews = snapshot.data!;
@@ -260,43 +269,64 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                       .format(review.timestamp!.toDate())
                   : 'Date unknown';
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                elevation: 2.0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        child: Text(review.reviewerName?.isNotEmpty == true
-                            ? review.reviewerName![0].toUpperCase()
-                            : 'A'),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primaryContainer,
+                            foregroundColor: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
+                            child: Text(review.reviewerName?.isNotEmpty == true
+                                ? review.reviewerName![0].toUpperCase()
+                                : 'A'),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  review.reviewerName ?? 'Anonymous',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
+                                ),
+                                Text(
+                                  dateFormatted,
+                                  style: TextStyle(
+                                      color: Colors.grey[600], fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _buildStarRating(review.rating, size: 18),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              review.reviewerName ?? 'Anonymous',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              dateFormatted,
-                              style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 12),
-                            ),
-                          ],
+                      const SizedBox(height: 12),
+                      Text(
+                        review.comment,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5, // Improved line spacing for readability
+                          color: Colors
+                              .grey[850], // Slightly darker for better contrast
                         ),
                       ),
-                      _buildStarRating(review.rating, size: 18),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    review.comment,
-                    style: const TextStyle(fontSize: 14, height: 1.4),
-                  ),
-                ],
+                ),
               );
             },
           );

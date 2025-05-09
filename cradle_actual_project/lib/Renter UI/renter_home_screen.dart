@@ -1096,7 +1096,7 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                                         : 'Listing'))
                                 .capitalizeFirstLetter(),
                             style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF9E9E9E))),
+                                fontSize: 12, color: Color(0xFF000000))),
                       ],
                     ),
                   ),
@@ -1145,7 +1145,10 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('₱${listing.price.toStringAsFixed(0)} / Month',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16, // Increased font size
+                          )),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
                         transitionBuilder:
@@ -1181,20 +1184,20 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                       ...List.generate(5, (index) {
                         if (index < listing.rating.floor()) {
                           return const Icon(Icons.star,
-                              color: Color(0xFF878585), size: 16);
+                              color: Color(0xFF4F378B), size: 16);
                         }
                         if (index < listing.rating.ceil() &&
                             listing.rating % 1 >= 0.5) {
                           return const Icon(Icons.star_half,
-                              color: Color(0xFF878585), size: 16);
+                              color: Color(0xFF4F378B), size: 16);
                         }
                         return const Icon(Icons.star_border,
-                            color: Color(0xFF878585), size: 16);
+                            color: Color(0xFF4F378B), size: 16);
                       }),
                       const SizedBox(width: 4),
                       Text(listing.rating.toStringAsFixed(1),
                           style: const TextStyle(
-                              color: Colors.grey, fontSize: 14)),
+                              color: Color(0xFF4F378B), fontSize: 14)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -1202,7 +1205,8 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                     listing.otherDetails.isNotEmpty
                         ? listing.otherDetails
                         : 'This is comfy and has all the amenities you need.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style:
+                        TextStyle(fontSize: 12, color: const Color(0xFF000000)),
                   ),
                 ],
               ),

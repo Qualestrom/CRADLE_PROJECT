@@ -228,7 +228,7 @@ Widget _buildScaffoldWithCustomAppBar({
             top: 48.0, bottom: 10.0, left: 16.0, right: 16.0),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFBEFFD),
+            color: const Color(0xFFFEF7FF),
             borderRadius: BorderRadius.circular(30),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -218,7 +218,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
         ),
         child: const Icon(
           Icons.contact_phone_outlined,
-          color: Color(0xFF6750A4),
+          color: Color(0xFF4F378B),
           size: 24,
         ),
       ),
@@ -827,6 +827,54 @@ class _ApartmentListingState extends State<ApartmentListing> {
 
                             // The SizedBoxes for bottom padding inside the scrollable area are removed
                             // as the SingleChildScrollView now has bottom padding.
+
+                            // OTHER DETAILS section
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'OTHER DETAILS',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double
+                                        .infinity, // Make container take full width available
+                                    padding: const EdgeInsets.all(
+                                        16.0), // Inner padding for content
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Theme.of(context)
+                                            .primaryColor, // Theme color for the frame
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                          12.0), // Rounded corners
+                                    ),
+                                    child: Text(
+                                      apartmentData.otherDetails.isNotEmpty
+                                          ? apartmentData.otherDetails
+                                          : 'None specified.',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[800],
+                                          height: 1.5),
+                                      textAlign: TextAlign.justify,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(
+                                height:
+                                    16), // Add some padding at the very end before the bottom bar
                           ], // This now correctly closes the children of the main Column
                         ), // End of SingleChildScrollView
                       ),

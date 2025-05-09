@@ -90,6 +90,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
           ),
           const SizedBox(width: 12),
           Expanded(child: content),
+          // (Remove this line entirely as it is unnecessary)
         ],
       ),
     );
@@ -334,143 +335,167 @@ class _BedspacerListingState extends State<BedspacerListing> {
 
         // Document exists, now use FutureBuilder to map it (for image URL)
         return FutureBuilder<Bedspace>(
-          future: FirestoreMapper.mapDocumentToForRent(snapshot.data!)
-              .then((forRent) => forRent as Bedspace), // Cast to Bedspace
-          builder: (context, bedspaceSnapshot) {
-            if (bedspaceSnapshot.connectionState == ConnectionState.waiting) {
-              return _buildLoadingScreen(context, "Processing...");
-            }
-            if (bedspaceSnapshot.hasError) {
-              _logger.e(
-                  "Error mapping bedspace document for ID: ${widget.listingId}",
-                  error: bedspaceSnapshot.error);
-              return Scaffold(
-                appBar: AppBar(title: const Text('Error')),
-                body: Center(
-                    child: Text(
-                        'Error loading details: ${bedspaceSnapshot.error}')),
-              );
-            }
-            if (!bedspaceSnapshot.hasData) {
-              return Scaffold(
-                appBar: AppBar(title: const Text('Error')),
-                body: const Center(
-                    child: Text('Could not load bedspace details.')),
-              );
-            }
+            future: FirestoreMapper.mapDocumentToForRent(snapshot.data!)
+                .then((forRent) => forRent as Bedspace), // Cast to Bedspace
+            builder: (context, bedspaceSnapshot) {
+              if (bedspaceSnapshot.connectionState == ConnectionState.waiting) {
+                return _buildLoadingScreen(context, "Processing...");
+              }
+              if (bedspaceSnapshot.hasError) {
+                _logger.e(
+                    "Error mapping bedspace document for ID: ${widget.listingId}",
+                    error: bedspaceSnapshot.error);
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Error')),
+                  body: Center(
+                      child: Text(
+                          'Error loading details: ${bedspaceSnapshot.error}')),
+                );
+              }
+              if (!bedspaceSnapshot.hasData) {
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Error')),
+                  body: const Center(
+                      child: Text('Could not load bedspace details.')),
+                );
+              }
 
-            final Bedspace bedspaceData = bedspaceSnapshot.data!;
-            final billsMap =
-                _getBillsIncludedMapWithData(bedspaceData); // Pass data
+              final Bedspace bedspaceData = bedspaceSnapshot.data!;
+              final billsMap =
+                  _getBillsIncludedMapWithData(bedspaceData); // Pass data
 
-            return Scaffold(
+              return Scaffold(
                 // AppBar removed
                 backgroundColor: Colors.white,
                 body: RefreshIndicator(
                   // Wrap Stack with RefreshIndicator
                   onRefresh: _handleRefresh,
                   child: Stack(
-                    // Ensures the Stack fills the available space
-                    fit: StackFit.expand,
-                    // Use Stack for overlaying back button
-                    children: [
-                      // New White Container for Notification Back
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          height: MediaQuery.of(context).padding.top +
-                              _kTopBarHeight, // Covers status bar + toolbar area
-                          color: Colors.white,
-                          // You could add a bottom border if desired:
-                          // decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+                      // Ensures the Stack fills the available space
+                      fit: StackFit.expand,
+                      // Use Stack for overlaying back button
+                      children: [
+                        // New White Container for Notification Back
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            height: MediaQuery.of(context).padding.top +
+                                _kTopBarHeight, // Covers status bar + toolbar area
+                            color: Colors.white,
+                            // You could add a bottom border if desired:
+                            // decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+                          ),
                         ),
-                      ),
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.only(
-                            bottom:
-                                _kBottomBarHeight), // Padding for the bottom bar
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          // Add top padding to push content below the new white bar
-                          children: [
-                            SizedBox(
-                                height: MediaQuery.of(context).padding.top +
-                                    _kTopBarHeight),
-                            Container(
-                              width: double.infinity,
-                              height: 300, // Adjust height as desired
-                              child: (bedspaceData.imageDownloadUrl != null &&
-                                      bedspaceData.imageDownloadUrl!.isNotEmpty)
-                                  ? Image.network(
-                                      bedspaceData.imageDownloadUrl!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                        height: 300, // Match parent height
-                                        color: Colors.grey[300],
-                                        child: const Center(
-                                            child:
-                                                Text('Could not load image')),
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.only(
+                              bottom:
+                                  _kBottomBarHeight), // Padding for the bottom bar
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            // Add top padding to push content below the new white bar
+                            children: [
+                              SizedBox(
+                                  height: MediaQuery.of(context).padding.top +
+                                      _kTopBarHeight),
+                              Container(
+                                width: double.infinity,
+                                height: 300, // Adjust height as desired
+                                child: (bedspaceData.imageDownloadUrl != null &&
+                                        bedspaceData
+                                            .imageDownloadUrl!.isNotEmpty)
+                                    ? Image.network(
+                                        bedspaceData.imageDownloadUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                          height: 300, // Match parent height
+                                          color: Colors.grey[300],
+                                          child: const Center(
+                                              child:
+                                                  Text('Could not load image')),
+                                        ),
+                                      )
+                                    : Image.network(
+                                        'https://via.placeholder.com/400x250?text=No+Image',
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                          height: 300, // Match parent height
+                                          color: Colors.grey[300],
+                                          child: const Center(
+                                              child: Text(
+                                                  'Placeholder not available')),
+                                        ),
                                       ),
-                                    )
-                                  : Image.network(
-                                      'https://via.placeholder.com/400x250?text=No+Image',
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                        height: 300, // Match parent height
-                                        color: Colors.grey[300],
-                                        child: const Center(
-                                            child: Text(
-                                                'Placeholder not available')),
-                                      ),
-                                    ),
-                            ), // End of Image Container
+                              ), // End of Image Container
 
-                            // Header section with name, location, owner, and capacity
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 32, vertical: 24),
-                              color: Colors.white,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              bedspaceData.name.isNotEmpty
-                                                  ? bedspaceData.name
-                                                  : "Bedspace Details",
-                                              style: const TextStyle(
-                                                fontSize: 24,
-                                                fontWeight: FontWeight.w900,
-                                                color: Color(0xFF6750A4),
+                              // Header section with name, location, owner, and capacity
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 24),
+                                color: Colors.white,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                bedspaceData.name.isNotEmpty
+                                                    ? bedspaceData.name
+                                                    : "Bedspace Details",
+                                                style: const TextStyle(
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Color(0xFF6750A4),
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Icon(Icons.location_on,
-                                                    size: 16,
-                                                    color: const Color(
-                                                        0xFF49454F)),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    bedspaceData.address,
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.location_on,
+                                                      size: 16,
+                                                      color: const Color(
+                                                          0xFF49454F)),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: Text(
+                                                      bedspaceData.address,
+                                                      style: TextStyle(
+                                                        color: const Color(
+                                                            0xFF49454F),
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.person,
+                                                      size: 16,
+                                                      color: const Color(
+                                                          0xFF49454F)),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    bedspaceData.contactPerson,
                                                     style: TextStyle(
                                                       color: const Color(
                                                           0xFF49454F),
@@ -478,408 +503,442 @@ class _BedspacerListingState extends State<BedspacerListing> {
                                                       fontWeight:
                                                           FontWeight.w500,
                                                     ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              width: 50,
+                                              height: 50,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFF6750A4),
+                                                  width: 2.0,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  bedspaceData.roommateCount
+                                                      .toString(),
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 20,
+                                                    color: Color(0xFF6750A4),
                                                   ),
                                                 ),
-                                              ],
+                                              ),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                Icon(Icons.person,
-                                                    size: 16,
-                                                    color: const Color(
-                                                        0xFF49454F)),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  bedspaceData.contactPerson,
-                                                  style: TextStyle(
-                                                    color:
-                                                        const Color(0xFF49454F),
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
+                                            const SizedBox(height: 5),
+                                            const Text('Remaining\nCapacity',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Color(0xFF49454F))),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: Colors.grey[300]),
+
+                              // Ratings section
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'RATINGS',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            _buildStarRating(
+                                                bedspaceData.rating),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              bedspaceData.rating
+                                                  .toStringAsFixed(1),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.normal,
+                                                color: Colors.black,
+                                              ),
                                             ),
                                           ],
                                         ),
+                                        OutlinedButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ReviewsScreen(
+                                                          listingId:
+                                                              widget.listingId,
+                                                          listingName:
+                                                              bedspaceData
+                                                                  .name),
+                                                ));
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(
+                                                color: Color(0xFF6750A4)),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 8),
+                                          ),
+                                          child: const Text(
+                                            'Reviews',
+                                            style: TextStyle(
+                                                color: Color(0xFF6750A4)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Details section
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'DETAILS',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
                                       ),
-                                      const SizedBox(width: 16),
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildDetailRow(
+                                      'Max. Capacity',
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.people,
+                                              color: Color(0xFF6750A4),
+                                              size: 25),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${bedspaceData.roommateCount} persons',
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    _buildDetailRow(
+                                      'Bills Included:',
+                                      Row(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.center,
                                         children: [
-                                          Container(
-                                            width: 50,
-                                            height: 50,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: const Color(0xFF6750A4),
-                                                width: 2.0,
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                bedspaceData.roommateCount
-                                                    .toString(),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 20,
-                                                  color: Color(0xFF6750A4),
-                                                ),
-                                              ),
-                                            ),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.water_drop,
+                                                  color: billsMap['Water']!
+                                                      ? const Color(0xFF6750A4)
+                                                      : Colors.grey[600],
+                                                  size: 22),
+                                              const SizedBox(height: 4),
+                                              Text('Water',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: billsMap['Water']!
+                                                          ? Colors.black
+                                                          : Colors.grey[600])),
+                                            ],
                                           ),
-                                          const SizedBox(height: 5),
-                                          const Text('Remaining\nCapacity',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: Color(0xFF49454F))),
+                                          const SizedBox(width: 12),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.bolt,
+                                                  color: billsMap['Electric']!
+                                                      ? const Color(0xFF6750A4)
+                                                      : Colors.grey[600],
+                                                  size: 22),
+                                              const SizedBox(height: 4),
+                                              Text('Electric',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          billsMap['Electric']!
+                                                              ? Colors.black
+                                                              : Colors
+                                                                  .grey[600])),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.wifi,
+                                                  color: billsMap['Internet']!
+                                                      ? const Color(0xFF6750A4)
+                                                      : Colors.grey[600],
+                                                  size: 22),
+                                              const SizedBox(height: 4),
+                                              Text('Internet',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          billsMap['Internet']!
+                                                              ? Colors.black
+                                                              : Colors
+                                                                  .grey[600])),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.local_fire_department,
+                                                  color: billsMap['LPG']!
+                                                      ? const Color(0xFF6750A4)
+                                                      : Colors.grey[600],
+                                                  size: 22),
+                                              const SizedBox(height: 4),
+                                              Text('LPG',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: billsMap['LPG']!
+                                                          ? Colors.black
+                                                          : Colors.grey[600])),
+                                            ],
+                                          ),
+                                          if (bedspaceData
+                                              .billsIncluded.isEmpty)
+                                            Text('None',
+                                                style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[600])),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Colors.grey[300]),
-
-                            // Ratings section
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 32, vertical: 12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'RATINGS',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
+                                    _buildDetailRow(
+                                      'Curfew:',
                                       Row(
                                         children: [
-                                          _buildStarRating(bedspaceData.rating),
+                                          const Icon(Icons.lock_clock,
+                                              color: Color(0xFF6750A4),
+                                              size: 25),
                                           const SizedBox(width: 8),
                                           Text(
-                                            bedspaceData.rating
-                                                .toStringAsFixed(1),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.normal,
-                                              color: Colors.black,
-                                            ),
+                                            bedspaceData.curfew != null &&
+                                                    bedspaceData
+                                                        .curfew!.isNotEmpty
+                                                ? bedspaceData.curfew!
+                                                : 'None',
+                                            style:
+                                                const TextStyle(fontSize: 14),
                                           ),
                                         ],
                                       ),
-                                      OutlinedButton(
-                                        onPressed: () {
-                                          Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ReviewsScreen(
-                                                        listingId:
-                                                            widget.listingId,
-                                                        listingName:
-                                                            bedspaceData.name),
-                                              ));
-                                        },
-                                        style: OutlinedButton.styleFrom(
-                                          side: const BorderSide(
-                                              color: Color(0xFF6750A4)),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 8),
-                                        ),
-                                        child: const Text(
-                                          'Reviews',
-                                          style: TextStyle(
-                                              color: Color(0xFF6750A4)),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Details section
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 32, vertical: 12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'DETAILS',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
                                     ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildDetailRow(
-                                    'Max. Capacity',
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.people,
-                                            color: Color(0xFF6750A4), size: 25),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          '${bedspaceData.roommateCount} persons',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  _buildDetailRow(
-                                    'Bills Included:',
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.water_drop,
-                                                color: billsMap['Water']!
-                                                    ? const Color(0xFF6750A4)
-                                                    : Colors.grey[600],
-                                                size: 22),
-                                            const SizedBox(height: 4),
-                                            Text('Water',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: billsMap['Water']!
-                                                        ? Colors.black
-                                                        : Colors.grey[600])),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.bolt,
-                                                color: billsMap['Electric']!
-                                                    ? const Color(0xFF6750A4)
-                                                    : Colors.grey[600],
-                                                size: 22),
-                                            const SizedBox(height: 4),
-                                            Text('Electric',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: billsMap['Electric']!
-                                                        ? Colors.black
-                                                        : Colors.grey[600])),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.wifi,
-                                                color: billsMap['Internet']!
-                                                    ? const Color(0xFF6750A4)
-                                                    : Colors.grey[600],
-                                                size: 22),
-                                            const SizedBox(height: 4),
-                                            Text('Internet',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: billsMap['Internet']!
-                                                        ? Colors.black
-                                                        : Colors.grey[600])),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.local_fire_department,
-                                                color: billsMap['LPG']!
-                                                    ? const Color(0xFF6750A4)
-                                                    : Colors.grey[600],
-                                                size: 22),
-                                            const SizedBox(height: 4),
-                                            Text('LPG',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: billsMap['LPG']!
-                                                        ? Colors.black
-                                                        : Colors.grey[600])),
-                                          ],
-                                        ),
-                                        if (bedspaceData.billsIncluded.isEmpty)
-                                          Text('None',
-                                              style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Colors.grey[600])),
-                                      ],
-                                    ),
-                                  ),
-                                  _buildDetailRow(
-                                    'Curfew:',
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.lock_clock,
-                                            color: Color(0xFF6750A4), size: 25),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          bedspaceData.curfew != null &&
-                                                  bedspaceData
-                                                      .curfew!.isNotEmpty
-                                              ? bedspaceData.curfew!
-                                              : 'None',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  _buildDetailRow(
-                                    'Gender:',
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.wc,
-                                            color: Color(0xFF6750A4), size: 25),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _getGenderText(bedspaceData.gender),
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  _buildDetailRow(
-                                    'Bathrooms:',
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.bathroom_outlined,
-                                            color: Color(0xFF6750A4), size: 25),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          '${bedspaceData.bathroomShareCount} shared bathrooms',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (bedspaceData.otherDetails.isNotEmpty)
                                     _buildDetailRow(
-                                      'Other Details:',
-                                      Text(
-                                        bedspaceData.otherDetails,
-                                        style: const TextStyle(fontSize: 14),
+                                      'Gender:',
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.wc,
+                                              color: Color(0xFF6750A4),
+                                              size: 25),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _getGenderText(bedspaceData.gender),
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                ],
+                                    _buildDetailRow(
+                                      'Bathrooms:',
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.bathroom_outlined,
+                                              color: Color(0xFF6750A4),
+                                              size: 25),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${bedspaceData.bathroomShareCount} shared bathrooms',
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            // The SizedBoxes for bottom padding inside the scrollable area are removed
-                            // as the SingleChildScrollView now has bottom padding.
-                          ],
+                              // The SizedBoxes for bottom padding inside the scrollable area are removed
+                              // as the SingleChildScrollView now has bottom padding.
+                            ],
+                          ),
                         ),
-                      ),
-                      // Positioned Back Button
-                      Positioned(
-                        top: MediaQuery.of(context).padding.top +
-                            32, // Status bar padding + extra
-                        left: 16,
-                        child: Material(
-                          color: Colors
-                              .transparent, // Ensures InkWell splash is visible on transparent bg
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(
-                                24), // For circular splash
-                            onTap: () => Navigator.of(context).pop(),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(
-                                    0.3), // Semi-transparent background
-                                shape: BoxShape.circle,
+                        // OTHER DETAILS section
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'OTHER DETAILS',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons
-                                    .arrow_back_ios_new, // iOS-style back arrow
-                                color: Colors.white, // White icon for contrast
-                                size: 20,
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double
+                                    .infinity, // Make container take full width available
+                                padding: const EdgeInsets.all(
+                                    16.0), // Inner padding for content
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .primaryColor, // Theme color for the frame
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                      12.0), // Rounded corners
+                                ),
+                                child: Text(
+                                  bedspaceData.otherDetails.isNotEmpty
+                                      ? bedspaceData.otherDetails
+                                      : 'None specified.',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[800],
+                                      height: 1.5),
+                                  textAlign: TextAlign.justify,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(
+                            height:
+                                16), // Add some padding at the very end before the bottom bar
+
+                        // End of Column
+                        // Positioned Back Button
+                        Positioned(
+                          top: MediaQuery.of(context).padding.top +
+                              32, // Status bar padding + extra
+                          left: 16,
+                          child: Material(
+                            color: Colors
+                                .transparent, // Ensures InkWell splash is visible on transparent bg
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                  24), // For circular splash
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(
+                                      0.3), // Semi-transparent background
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons
+                                      .arrow_back_ios_new, // iOS-style back arrow
+                                  color:
+                                      Colors.white, // White icon for contrast
+                                  size: 20,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      // Positioned Bottom Price Bar
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: _buildBottomPriceBar(bedspaceData),
-                      ),
-                    ],
-                  ), // End of Stack
-                )); // End of FutureBuilder
-          }, // End of FutureBuilder builder
-        ); // End of FutureBuilder
+                        // Positioned Bottom Price Bar
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: _buildBottomPriceBar(bedspaceData),
+                        ),
+                      ]),
+                ),
+              );
+            }); // End of FutureBuilder
       }, // End of StreamBuilder builder
-    );
+    ); // Close the StreamBuilder widget
+  } // End of build method
+} // End of _BedspacerListingState class
+
+// Helper to convert gender preference to display text
+String _getGenderText(GenderPreference gender) {
+  switch (gender) {
+    case GenderPreference.maleOnly:
+      return '♂️ Male Only';
+    case GenderPreference.femaleOnly:
+      return '♀️ Female Only';
+    case GenderPreference.any:
+      return '⚥ Any Gender';
   }
+}
 
-  // Helper to convert gender preference to display text
-  String _getGenderText(GenderPreference gender) {
-    switch (gender) {
-      case GenderPreference.maleOnly:
-        return '♂️ Male Only';
-      case GenderPreference.femaleOnly:
-        return '♀️ Female Only';
-      case GenderPreference.any:
-        return '⚥ Any Gender';
-    }
-  }
+// Helper function to determine which bills are included, now taking Bedspace data
+Map<String, bool> _getBillsIncludedMapWithData(Bedspace bedspaceData) {
+  Map<String, bool> billsMap = {
+    'Water': false,
+    'Electric': false,
+    'Internet': false,
+    'LPG': false
+  };
 
-  // Helper function to determine which bills are included, now taking Bedspace data
-  Map<String, bool> _getBillsIncludedMapWithData(Bedspace bedspaceData) {
-    Map<String, bool> billsMap = {
-      'Water': false,
-      'Electric': false,
-      'Internet': false,
-      'LPG': false
-    };
-
-    if (bedspaceData.billsIncluded.isNotEmpty) {
-      for (String bill in bedspaceData.billsIncluded) {
-        if (bill.toLowerCase().contains('water')) billsMap['Water'] = true;
-        if (bill.toLowerCase().contains('electric'))
-          billsMap['Electric'] = true;
-        if (bill.toLowerCase().contains('wifi') ||
-            bill.toLowerCase().contains('internet')) {
-          billsMap['Internet'] = true;
-        }
-        if (bill.toLowerCase().contains('lpg') ||
-            bill.toLowerCase().contains('gas')) billsMap['LPG'] = true;
+  if (bedspaceData.billsIncluded.isNotEmpty) {
+    for (String bill in bedspaceData.billsIncluded) {
+      if (bill.toLowerCase().contains('water')) billsMap['Water'] = true;
+      if (bill.toLowerCase().contains('electric')) billsMap['Electric'] = true;
+      if (bill.toLowerCase().contains('wifi') ||
+          bill.toLowerCase().contains('internet')) {
+        billsMap['Internet'] = true;
       }
+      if (bill.toLowerCase().contains('lpg') ||
+          bill.toLowerCase().contains('gas')) billsMap['LPG'] = true;
     }
-    return billsMap;
   }
+  return billsMap;
 }
 
 // Helper function (can be moved to a utility file)
