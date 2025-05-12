@@ -124,6 +124,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
   // Toggle States and related data (from owner_edit.dart)
   final Set<String> _selectedBills = {};
   bool _hasCurfew = false;
+  bool _isBillsSectionExpanded = false; // State for expanding bills section
   TimeOfDay _curfewFromTime = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _curfewToTime = const TimeOfDay(hour: 4, minute: 0);
   String _curfewButtonText = 'No curfew';
@@ -395,16 +396,16 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
         return Theme(
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF9C27B0),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black87,
-              secondary: Color(0xFF9C27B0),
-              onSecondary: Colors.white,
+              primary: Color(0xFF4F378B),
+              onPrimary: Color(0xFFFEF7FF),
+              surface: Color(0xFFFEF7FF),
+              onSurface: Color(0xFF4F378B),
+              secondary: Color(0xFF4F378B),
+              onSecondary: Color(0xFFFEF7FF),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF9C27B0)),
+                  foregroundColor: const Color(0xFF4F378B)),
             ),
           ),
           child: child!,
@@ -613,7 +614,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
               right: 16.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFFBEFFD), // New AppBar background color
+              color: const Color(0xFFFEF7FF), // New AppBar background color
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -644,7 +645,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2)),
                       )
                     : IconButton(
-                        icon: const Icon(Icons.check, color: Colors.purple),
+                        icon: const Icon(Icons.check, color: Colors.black87),
                         onPressed: _saveData,
                       ),
               ],
@@ -727,11 +728,20 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
                   _buildToggleSection(
                     title: 'Bills Included',
                     value: _selectedBills.isEmpty
-                        ? 'None'
-                        : 'Selected (${_selectedBills.length})',
-                    onTap: _isSaving ? null : _showBillsBottomSheet,
+                        ? (_isBillsSectionExpanded ? 'Select bills...' : 'None')
+                        : '(${_selectedBills.length}) Selected',
+                    onTap: _isSaving
+                        ? null
+                        : () {
+                            setState(() {
+                              _isBillsSectionExpanded =
+                                  !_isBillsSectionExpanded;
+                            });
+                          },
                     isChecked: _selectedBills.isNotEmpty,
+                    isExpanded: _isBillsSectionExpanded, // Pass expanded state
                   ),
+                  _buildInlineBillsOptions(), // Add the inline bills options here
                   const SizedBox(height: 16),
                   _buildToggleSection(
                     title: 'Curfew',
@@ -1000,6 +1010,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
     required String value,
     required VoidCallback? onTap,
     required bool isChecked,
+    bool isExpanded = false, // Added for bills section icon
   }) {
     return InkWell(
       onTap: onTap,
@@ -1017,7 +1028,7 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: isChecked
-                      ? const Color(0xFF757575)
+                      ? const Color(0xFF4F378B)
                       : Colors.grey.shade300, // Adjusted color for unchecked
                   borderRadius:
                       const BorderRadius.horizontal(left: Radius.circular(25)),
@@ -1052,10 +1063,16 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
                   children: [
                     Text(
                       value,
-                      style: const TextStyle(color: Color(0xFF878585)),
+                      style: const TextStyle(color: Color(0xFF4F378B)),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.edit, color: Color(0xFF878585), size: 18),
+                    Icon(
+                        isExpanded
+                            ? Icons.expand_less
+                            : Icons
+                                .expand_more, // Change icon based on expansion
+                        color: const Color(0xFF4F378B),
+                        size: 22),
                   ],
                 ),
               ),
@@ -1063,6 +1080,81 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // Widget to build the inline bills options using AnimatedCrossFade
+  Widget _buildInlineBillsOptions() {
+    Widget billsContent = Container(
+      margin: const EdgeInsets.only(bottom: 8.0),
+      width: MediaQuery.of(context).size.width * 0.6,
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Center(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: _billOptions.map((option) {
+            bool isSelected = _selectedBills.contains(option['value']);
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedBills.remove(option['value']);
+                  } else {
+                    _selectedBills.add(option['value']);
+                  }
+                });
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? _getBillColor(option['value'])
+                      : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(option['icon'],
+                        color:
+                            isSelected ? Colors.white : const Color(0xFF4F378B),
+                        size: 18),
+                    const SizedBox(width: 8),
+                    Text(option['label'],
+                        style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF4F378B))),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 300),
+          firstChild: const SizedBox
+              .shrink(), // Widget to show when collapsed (takes no space)
+          secondChild: billsContent, // Widget to show when expanded
+          crossFadeState: _isBillsSectionExpanded
+              ? CrossFadeState.showSecond // Show billsContent
+              : CrossFadeState.showFirst, // Show SizedBox.shrink()
+        ),
+      ],
     );
   }
 
@@ -1080,87 +1172,26 @@ class _ListingAddEditScreenState extends State<ListingAddEditScreen> {
 
   // Options for Bills Included Bottom Sheet
   static const List<Map<String, dynamic>> _billOptions = [
-    {'label': 'Electricity', 'icon': Icons.flash_on, 'value': 'electricity'},
     {'label': 'Water', 'icon': Icons.water_drop, 'value': 'water'},
     {'label': 'Internet', 'icon': Icons.wifi, 'value': 'internet'},
+    {'label': 'Electricity', 'icon': Icons.flash_on, 'value': 'electricity'},
     {'label': 'LPG', 'icon': Icons.local_fire_department, 'value': 'lpg'},
   ];
 
-  void _showBillsBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateModal) {
-            return Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Select included bills:',
-                      style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _billOptions.map((option) {
-                      bool isSelected =
-                          _selectedBills.contains(option['value']);
-                      return InkWell(
-                        onTap: () {
-                          setStateModal(() {
-                            if (isSelected) {
-                              _selectedBills.remove(option['value']);
-                            } else {
-                              _selectedBills.add(option['value']);
-                            }
-                          });
-                          setState(() {}); // Update parent widget state
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? (option['value'] == 'water'
-                                    ? Colors.blue
-                                    : option['value'] == 'electricity'
-                                        ? Colors.amber
-                                        : option['value'] == 'internet'
-                                            ? Colors.indigo
-                                            : Colors.purple)
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(option['icon'],
-                                  color:
-                                      isSelected ? Colors.white : Colors.grey,
-                                  size: 18),
-                              const SizedBox(width: 8),
-                              Text(option['label'],
-                                  style: TextStyle(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.black87)),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+  // Helper to get color for bill chip (can be customized)
+  Color _getBillColor(String billValue) {
+    switch (billValue) {
+      case 'water':
+        return const Color(0xFF4F378B);
+      case 'electricity':
+        return const Color(0xFF4F378B);
+      case 'internet':
+        return const Color(0xFF4F378B);
+      case 'lpg':
+        return const Color(0xFF4F378B);
+      default:
+        return const Color.fromARGB(255, 255, 255, 255);
+    }
   }
 
   void _showContractBottomSheet() {

@@ -9,6 +9,7 @@ import '../Back-End/for_rent.dart'; // Assuming you might want to add for_rent l
 
 const double _kBottomBarHeight =
     120.0; // Adjusted height for owner screen's bottom bar
+const double _kTopBarHeight = 8.0; // Or your desired new height
 
 class ApartmentListing extends StatefulWidget {
   final String listingId;
@@ -74,14 +75,14 @@ class _ApartmentListingState extends State<ApartmentListing> {
 
   // Function to show the Reviews modal
   void _showReviewsModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return ReviewsScreen(
-            listingId: widget.listingId,
-            listingName: _apartmentData?.name ?? "Apartment");
-      },
-    );
+    // Navigate to the ReviewsScreen as a full page
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReviewsScreen(
+              listingId: widget.listingId,
+              listingName: _apartmentData?.name ?? "Apartment"),
+        ));
   }
 
   void _onEditPressed() {
@@ -139,7 +140,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
             padding: const EdgeInsets.symmetric(
                 horizontal: 8, vertical: 8), // Adjusted padding
             decoration: BoxDecoration(
-              color: Colors.grey[600],
+              color: const Color(0xFF6750A4),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Center(
@@ -230,10 +231,7 @@ class _ApartmentListingState extends State<ApartmentListing> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Loading Apartment...')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return _buildLoadingScreen(context, "Loading Apartment...");
     }
 
     if (_error != null || _apartmentData == null) {
@@ -261,11 +259,24 @@ class _ApartmentListingState extends State<ApartmentListing> {
         .contains('Lpg'); // Assuming "Lpg" is stored, not "Gas"
 
     return Scaffold(
+      backgroundColor: Colors.white, // AppBar removed
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
         child: Stack(
           fit: StackFit.expand,
           children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: MediaQuery.of(context).padding.top +
+                    _kTopBarHeight, // Covers status bar + toolbar area
+                color: Colors.white,
+                // You could add a bottom border if desired:
+                // decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+              ),
+            ),
             SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: _kBottomBarHeight),
               child: Column(
@@ -273,8 +284,11 @@ class _ApartmentListingState extends State<ApartmentListing> {
                 children: [
                   // Apartment image
                   SizedBox(
+                      height:
+                          MediaQuery.of(context).padding.top + _kTopBarHeight),
+                  Container(
                     width: double.infinity,
-                    height: 300, // Matched renter screen image height
+                    height: 300,
                     child: (apartment.imageDownloadUrl?.isNotEmpty ?? false)
                         ? Image.network(
                             apartment.imageDownloadUrl!,
@@ -664,25 +678,66 @@ class _ApartmentListingState extends State<ApartmentListing> {
                             ],
                           ),
                         ),
-                        if (apartment.otherDetails
-                            .isNotEmpty) // Show other details if available
-                          _buildDetailRow(
-                            'Other Details:',
-                            Text(
-                              apartment.otherDetails,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
                       ],
                     ),
                   ),
-                  // Removed SizedBox for bottom padding as SingleChildScrollView has it
-                ],
-              ),
+
+                  // The SizedBoxes for bottom padding inside the scrollable area are removed
+                  // as the SingleChildScrollView now has bottom padding.
+
+                  // OTHER DETAILS section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'OTHER DETAILS',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double
+                              .infinity, // Make container take full width available
+                          padding: const EdgeInsets.all(
+                              16.0), // Inner padding for content
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .primaryColor, // Theme color for the frame
+                              width: 1.5,
+                            ),
+                            borderRadius:
+                                BorderRadius.circular(12.0), // Rounded corners
+                          ),
+                          child: Text(
+                            apartment.otherDetails.isNotEmpty
+                                ? apartment.otherDetails
+                                : 'None specified.',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[800],
+                                height: 1.5),
+                            textAlign: TextAlign.justify,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(
+                      height:
+                          16), // Add some padding at the very end before the bottom bar
+                ], // This now correctly closes the children of the main Column
+              ), // End of SingleChildScrollView
             ),
             Positioned(
               top: MediaQuery.of(context).padding.top +
-                  8, // Status bar padding + extra
+                  32, // Status bar padding + extra
               left: 16,
               child: Material(
                 color: Colors
@@ -718,4 +773,26 @@ class _ApartmentListingState extends State<ApartmentListing> {
       ),
     );
   }
+}
+
+Widget _buildLoadingScreen(BuildContext context, String message) {
+  return Scaffold(
+    backgroundColor: Colors.white, // Or your desired background color
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+        ],
+      ),
+    ),
+  );
 }

@@ -20,6 +20,7 @@ import 'renter_apartment_details_screen.dart';
 import '../utils/string_extensions.dart';
 import '../User/settle_now.dart'; // Import the WelcomeScreen
 import "../Menus/bookmarks_screen.dart";
+import '../Menus/setting.dart'; // Import the SettingsPage
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -607,15 +608,15 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
                 color: Theme.of(context).primaryColor,
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text("Profile"),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Profile (Not Implemented)')));
-              },
-            ),
+            // ListTile(
+            //   leading: const Icon(Icons.person_outline),
+            //   title: const Text("Profile"),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     ScaffoldMessenger.of(context).showSnackBar(
+            //         const SnackBar(content: Text('Profile (Not Implemented)')));
+            //   },
+            // ),
             ListTile(
               leading: const Icon(Icons.bookmark_border),
               title: const Text("Bookmarks"),
@@ -641,8 +642,10 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
               title: const Text("Settings"),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Settings (Not Implemented)')));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsPage()),
+                );
               },
             ),
             const Divider(),
@@ -967,71 +970,60 @@ class _RenterHomeScreenState extends State<RenterHomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Using AnnotatedRegion for better control over system UI overlay
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        // Status bar color for Android. For a seamless look with your AppBar,
-        // you might want it transparent or matching your AppBar's background.
-        statusBarColor: Colors.transparent, // Or match your AppBar background
-        // Status bar icon brightness (Android). Brightness.dark means dark icons.
-        statusBarIconBrightness: Brightness.dark,
-        // Status bar brightness (iOS). Brightness.dark means dark content (icons/text).
-        statusBarBrightness: Brightness
-            .light, // For iOS, Brightness.light means light background, dark content
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.white, // Set the background color to white
-        key: _scaffoldKey,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(70),
-          child: Padding(
-            padding: const EdgeInsets.only(
-                top: 48.0,
-                bottom: 10.0,
-                left: 16.0,
-                right: 16.0), // Increased top padding
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(
-                    0xFFFEF7FF), // FIXED: Using the color scheme from design
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.black87),
-                    onPressed: () {
-                      _scaffoldKey.currentState?.openDrawer();
-                    },
+    return Scaffold(
+      // backgroundColor: Colors.white, // This is already handled by the theme or Scaffold default
+      backgroundColor: Colors.white, // Set the background color to white
+      key: _scaffoldKey,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Padding(
+          padding: const EdgeInsets.only(
+              top: 48.0,
+              bottom: 10.0,
+              left: 16.0,
+              right: 16.0), // Increased top padding
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(
+                  0xFFFEF7FF), // FIXED: Using the color scheme from design
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.menu, color: Colors.black87),
+                  onPressed: () {
+                    _scaffoldKey.currentState?.openDrawer();
+                  },
+                ),
+                const Text(
+                  'Home',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.black87),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.filter_alt_outlined,
+                    color: _activeFilters.isFiltering
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.black87, // Highlight if filters active
                   ),
-                  const Text(
-                    'Home',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.black87),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.filter_alt_outlined,
-                      color: _activeFilters.isFiltering
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black87, // Highlight if filters active
-                    ),
-                    onPressed: _openFilterSheet,
-                  ),
-                ],
-              ),
+                  onPressed: _openFilterSheet,
+                ),
+              ],
             ),
           ),
         ),
-        drawer: _buildMenu(),
-        body: _isConnected
-            ? RefreshIndicator(
-                onRefresh: _handleRefresh, child: _buildListingStream())
-            : _buildOfflineMessage(), // Switch body based on connectivity
       ),
+      drawer: _buildMenu(),
+      body: _isConnected
+          ? RefreshIndicator(
+              onRefresh: _handleRefresh, child: _buildListingStream())
+          : _buildOfflineMessage(), // Switch body based on connectivity
     );
   }
 

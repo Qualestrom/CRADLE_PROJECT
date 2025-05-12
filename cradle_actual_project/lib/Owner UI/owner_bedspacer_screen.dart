@@ -9,6 +9,7 @@ import '../Menus/reviews_screen.dart'; // Import the ReviewsScreen
 
 const double _kBottomBarHeight =
     120.0; // Adjusted height for owner screen's bottom bar
+const double _kTopBarHeight = 8.0;
 
 class BedspacerListing extends StatefulWidget {
   final String listingId;
@@ -73,14 +74,14 @@ class _BedspacerListingState extends State<BedspacerListing> {
 
   // Function to show the Reviews modal
   void _showReviewsModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return ReviewsScreen(
-            listingId: widget.listingId,
-            listingName: _bedspaceData?.name ?? "Bedspace");
-      },
-    );
+    // Navigate to the ReviewsScreen as a full page
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReviewsScreen(
+              listingId: widget.listingId,
+              listingName: _bedspaceData?.name ?? "Bedspace"),
+        ));
   }
 
   void _editBedspacerDetails() {
@@ -136,7 +137,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
             padding: const EdgeInsets.symmetric(
                 horizontal: 8, vertical: 8), // Adjusted padding
             decoration: BoxDecoration(
-              color: Colors.grey[600],
+              color: const Color(0xFF6750A4),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Center(
@@ -239,10 +240,7 @@ class _BedspacerListingState extends State<BedspacerListing> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Loading Bedspace...')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return _buildLoadingScreen(context, "Loading Bedspace...");
     }
 
     if (_error != null || _bedspaceData == null) {
@@ -270,17 +268,33 @@ class _BedspacerListingState extends State<BedspacerListing> {
     String curfew = bedspace.curfew ?? 'Not specified';
 
     return Scaffold(
+      backgroundColor: Colors.white, // AppBar removed
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
         child: Stack(
           fit: StackFit.expand,
           children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: MediaQuery.of(context).padding.top +
+                    _kTopBarHeight, // Covers status bar + toolbar area
+                color: Colors.white,
+                // You could add a bottom border if desired:
+                // decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+              ),
+            ),
             SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: _kBottomBarHeight),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
+                      height:
+                          MediaQuery.of(context).padding.top + _kTopBarHeight),
+                  Container(
                     width: double.infinity,
                     height: 300, // Matched renter screen image height
                     child: (bedspace.imageDownloadUrl?.isNotEmpty ?? false)
@@ -685,14 +699,63 @@ class _BedspacerListingState extends State<BedspacerListing> {
                       ],
                     ),
                   ),
-                  // Removed SizedBox for bottom padding as SingleChildScrollView has it
-                ],
-              ),
+
+                  // The SizedBoxes for bottom padding inside the scrollable area are removed
+                  // as the SingleChildScrollView now has bottom padding.
+
+                  // OTHER DETAILS section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'OTHER DETAILS',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double
+                              .infinity, // Make container take full width available
+                          padding: const EdgeInsets.all(
+                              16.0), // Inner padding for content
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .primaryColor, // Theme color for the frame
+                              width: 1.5,
+                            ),
+                            borderRadius:
+                                BorderRadius.circular(12.0), // Rounded corners
+                          ),
+                          child: Text(
+                            bedspace.otherDetails.isNotEmpty
+                                ? bedspace.otherDetails
+                                : 'None specified.',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[800],
+                                height: 1.5),
+                            textAlign: TextAlign.justify,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(
+                      height:
+                          16), // Add some padding at the very end before the bottom bar
+                ], // This now correctly closes the children of the main Column
+              ), // End of SingleChildScrollView
             ),
-            // Positioned Back Button
             Positioned(
               top: MediaQuery.of(context).padding.top +
-                  8, // Status bar padding + extra
+                  32, // Status bar padding + extra
               left: 16,
               child: Material(
                 color: Colors
@@ -728,4 +791,28 @@ class _BedspacerListingState extends State<BedspacerListing> {
       ),
     );
   }
+}
+
+// Helper to build a loading screen
+
+Widget _buildLoadingScreen(BuildContext context, String message) {
+  return Scaffold(
+    backgroundColor: Colors.white, // Or your desired background color
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+        ],
+      ),
+    ),
+  );
 }

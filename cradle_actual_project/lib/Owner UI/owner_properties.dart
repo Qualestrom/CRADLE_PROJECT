@@ -17,6 +17,8 @@ import '../utils/owner_pending_verification_screen.dart'; // Import pending scre
 import 'owner_apartment_screen.dart'; // Import owner's apartment detail screen
 import 'owner_bedspacer_screen.dart'; // Import owner's bedspacer detail screen
 import '../utils/string_extensions.dart';
+import '../Menus/setting.dart'; // Import the SettingsPage
+import '../User/settle_now.dart'; // For WelcomeScreen after logout
 
 void main() async {
   // Make main async
@@ -49,6 +51,8 @@ class PropertyCard extends StatelessWidget {
   final String price;
   final String contractDuration;
   final String description;
+  final VoidCallback? onEdit; // Callback for edit action
+  final VoidCallback? onDelete; // Callback for delete action
 
   const PropertyCard({
     super.key,
@@ -58,6 +62,8 @@ class PropertyCard extends StatelessWidget {
     required this.price,
     required this.contractDuration,
     required this.description,
+    this.onEdit, // Add to constructor
+    this.onDelete, // Add to constructor
   });
 
   @override
@@ -110,8 +116,28 @@ class PropertyCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Options icon (three dots)
-                const Icon(Icons.more_vert),
+                // Options menu (three dots)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (String result) {
+                    if (result == 'edit' && onEdit != null) {
+                      onEdit!();
+                    } else if (result == 'delete' && onDelete != null) {
+                      onDelete!();
+                    }
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Text('Edit'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Text('Delete'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -237,11 +263,76 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
 
   Future<void> _loadUserInfo() async {
     if (!mounted) return;
+    logger.i("Attempting to load user info...");
+
     final prefs = await SharedPreferences.getInstance();
+    // Try to load from SharedPreferences first
+    String? prefFullName = prefs.getString(
+        "fullName"); // Use "fullName" key for SharedPreferences cache
+    String? prefAccountType = prefs.getString("accountType");
+
+    logger.i(
+        "From SharedPreferences: fullName='$prefFullName', accountType='$prefAccountType'");
+
+    User? currentUser = _auth.currentUser;
+    logger.i("Current Firebase user: ${currentUser?.uid ?? 'null'}");
+
+    // If user is logged in but info is missing from SharedPreferences, fetch from Firestore
+    if (currentUser != null) {
+      if (prefFullName == null || prefAccountType == null) {
+        logger.i(
+            "Full name or account type missing from SharedPreferences, attempting to fetch from Firestore for UID: ${currentUser.uid}");
+        try {
+          DocumentSnapshot userDoc =
+              await _db.collection('users').doc(currentUser.uid).get();
+          if (userDoc.exists) {
+            logger.i("Firestore document found for UID: ${currentUser.uid}");
+            final data = userDoc.data() as Map<String, dynamic>?;
+
+            if (data != null) {
+              // Fetch 'name' from Firestore (signup_renter saves it as 'name')
+              if (prefFullName == null && data.containsKey('name')) {
+                prefFullName = data['name'] as String?;
+                logger.i("Name from Firestore: '$prefFullName'");
+                if (prefFullName != null) {
+                  // Save to SharedPreferences using "fullName" key for caching
+                  await prefs.setString("fullName", prefFullName);
+                  logger.i(
+                      "Saved '$prefFullName' to SharedPreferences for key 'fullName'");
+                }
+              }
+              // Fetch 'accountType' from Firestore
+              if (prefAccountType == null && data.containsKey('accountType')) {
+                prefAccountType = data['accountType'] as String?;
+                logger.i("AccountType from Firestore: '$prefAccountType'");
+                if (prefAccountType != null) {
+                  await prefs.setString("accountType", prefAccountType);
+                  logger.i(
+                      "Saved '$prefAccountType' to SharedPreferences for key 'accountType'");
+                }
+              }
+            } else {
+              logger.w(
+                  "Firestore document data is null for UID: ${currentUser.uid}");
+            }
+          } else {
+            logger.w("No Firestore document found for UID: ${currentUser.uid}");
+          }
+        } catch (e, s) {
+          logger.e(
+              "Error fetching user info from Firestore for UID: ${currentUser.uid}",
+              error: e,
+              stackTrace: s);
+        }
+      }
+    }
+
     if (mounted) {
+      logger.i(
+          "Setting state with fullName='$prefFullName', accountType='$prefAccountType'");
       setState(() {
-        _accountType = prefs.getString("accountType");
-        _fullName = prefs.getString("fullName");
+        _fullName = prefFullName; // Update the state variable
+        _accountType = prefAccountType; // Update the state variable
       });
     }
   }
@@ -278,18 +369,17 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         // Handle different account statuses
-        // This could also be done in a wrapper widget before navigating here
-        body: _currentUser == null
-            ? const Center(child: Text("Please log in."))
-            : _accountStatus == null // Still loading status
-                ? const Center(child: CircularProgressIndicator())
-                : _accountStatus == 'pending_verification'
-                    ? const OwnerPendingVerificationScreen() // Show pending screen
-                    : _accountStatus == 'verified'
-                        ? _buildVerifiedOwnerUI() // Show normal UI
-                        : Center(
-                            child: Text(
-                                "Account status: $_accountStatus. Please contact support.")));
+        // The LandingPage (or initial auth state listener) should handle
+        // redirecting to WelcomeScreen if _currentUser is null.
+        body: _accountStatus == null // Still loading status
+            ? const Center(child: CircularProgressIndicator())
+            : _accountStatus == 'pending_verification'
+                ? const OwnerPendingVerificationScreen() // Show pending screen
+                : _accountStatus == 'verified'
+                    ? _buildVerifiedOwnerUI() // Show normal UI
+                    : Center(
+                        child: Text(
+                            "Account status: $_accountStatus. Please contact support.")));
   }
 
   Widget _buildVerifiedOwnerUI() {
@@ -307,7 +397,7 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
               right: 16.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFFBEFFD), // Matched RenterHomeScreen
+              color: const Color(0xFFFEF7FF), // Matched RenterHomeScreen
               borderRadius: BorderRadius.circular(30),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -423,9 +513,11 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                                     BedspacerListing(listingId: docId)));
                       }
                     },
-                    onLongPress: () =>
-                        _showDeleteConfirmationDialog(listing.name, docId),
+                    onLongPress: () => _showDeleteConfirmationDialog(
+                        listing.name,
+                        docId), // Keep long press as an alternative or remove if only using menu
                     child: PropertyCard(
+                      // Now pass callbacks to the card
                       propertyName: listing.name.isNotEmpty
                           ? listing.name
                           : "Untitled Property",
@@ -436,6 +528,10 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                       description: listing.otherDetails.isNotEmpty
                           ? listing.otherDetails
                           : 'No description available.',
+                      onEdit: () =>
+                          _navigateToAddEditScreen(isNew: false, docId: docId),
+                      onDelete: () =>
+                          _showDeleteConfirmationDialog(listing.name, docId),
                     ),
                   );
                 },
@@ -470,15 +566,15 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                 color: Theme.of(context).primaryColor,
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text("Profile"),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Profile (Not Implemented)')));
-              },
-            ),
+            // ListTile(
+            //   leading: const Icon(Icons.person_outline),
+            //   title: const Text("Profile"),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     ScaffoldMessenger.of(context).showSnackBar(
+            //         const SnackBar(content: Text('Profile (Not Implemented)')));
+            //   },
+            // ),
             ListTile(
               leading: const Icon(Icons.list_alt_outlined),
               title: const Text("My Properties"),
@@ -493,8 +589,10 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
               title: const Text("Settings"),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Settings (Not Implemented)')));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsPage()),
+                );
               },
             ),
             const Divider(),
@@ -513,6 +611,14 @@ class _MyPropertyScreenState extends State<MyPropertyScreen> {
                       prefs.remove("fullName"),
                     ]);
                     logger.i("User logged out successfully.");
+                    // Navigate to WelcomeScreen and remove all previous routes
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (context) => const WelcomeScreen()),
+                      (Route<dynamic> route) => false,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Successfully logged out.')));
                   } catch (e, s) {
                     logger.e("Error logging out", error: e, stackTrace: s);
                     ScaffoldMessenger.of(context).showSnackBar(

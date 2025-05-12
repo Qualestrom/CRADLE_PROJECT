@@ -392,14 +392,10 @@ class _ApartmentListingState extends State<ApartmentListing> {
             return Scaffold(
                 backgroundColor: Colors.white, // AppBar removed
                 body: RefreshIndicator(
-                  // Wrap Stack with RefreshIndicator
                   onRefresh: _handleRefresh,
                   child: Stack(
-                    // Ensures the Stack fills the available space
                     fit: StackFit.expand,
-                    // Use Stack for overlaying back button
                     children: [
-                      // New White Container for Notification Back
                       Positioned(
                         top: 0,
                         left: 0,
